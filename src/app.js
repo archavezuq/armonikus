@@ -378,7 +378,7 @@ function hitTest(p) {
 }
 function pitchAt(vi, y, sysI) {
   var sys = layout.systems[sysI], clef = VOICES[vi].clef, yb = (clef === 'treble' ? sys.yT : sys.yB) + 40;
-  var step = Math.round((yb - y) / 5); step = Math.max(-6, Math.min(12, step));
+  var step = Math.round((yb - y) / 5); step = clef === 'treble' ? Math.max(-8, Math.min(14, step)) : Math.max(-9, Math.min(16, step));
   var d = (clef === 'treble' ? 30 : 18) + step, l = LET[((d % 7) + 7) % 7], o = Math.floor(d / 7);
   var a = ui.acc === 'auto' ? keyAlts(S.key)[l] : ui.acc;
   return { l: l, o: o, a: a, step: step, y: yb - step * 5 };
