@@ -18,6 +18,7 @@
     <ol>
       <li>Si el docente dejó un <b>código de ejercicio</b>, pégalo en «Cargar ejercicio» y pulsa <i>Cargar</i>. Si no, elige tonalidad, compás y número de compases.</li>
       <li>Elige la <b>voz</b> (S, A, T, B) y la <b>figura</b>. Haz clic en el pentagrama a la altura de la nota. El primer clic en el compás sombreado crea un acorde nuevo; en los siguientes, haz clic sobre el acorde que quieras completar.</li>
+      <li><b>Ritmo distinto en cada voz:</b> activa «Ritmo propio por voz», elige la figura y haz clic en la voz. Una figura más corta que la del acorde lo divide; una más larga (por ejemplo, blanca sobre dos negras) ocupa los acordes siguientes, que deben estar vacíos en esa voz.</li>
       <li>Para una nota fuera de la armadura, elige antes ♭, ♮ o ♯. Para borrar, vuelve a hacer clic sobre la misma nota o usa clic derecho.</li>
       <li>Debajo de cada acorde pon el <b>grado</b> (cifrado romano) y encima el <b>cifrado americano</b>: haz clic en los recuadros.</li>
       <li>Escribe tu nombre y pulsa <i>Descargar imagen (PNG)</i> o <i>Imprimir / guardar PDF</i>. Sube ese archivo en la tarea de Moodle.</li>
@@ -44,7 +45,7 @@
     </div>
     <div class="row">
       <div class="grp"><span class="t">Voz</span><div class="b" id="bVoice"></div></div>
-      <div class="grp"><span class="t">Figura</span><div class="b" id="bDur"></div></div>
+      <div class="grp"><span class="t">Figura</span><div class="b" id="bDur"></div><label class="chk" title="Si está activado, la figura elegida vale solo para la voz que escribes y puede ser distinta a la de las otras voces"><input type="checkbox" id="cOwn"> Ritmo propio por voz</label></div>
       <div class="grp"><span class="t">Silencio / alteración</span><div class="b"><button id="bRest" title="Escribir silencio">Silencio</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button></div></div>
       <div class="grp"><span class="t">Herramienta</span><div class="b" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button></div></div>
     </div>

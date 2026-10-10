@@ -57,7 +57,7 @@ var EPS = 1e-6;
 var W = 960, SYSH = 290, TOPPAD = 76, GAP = 56, LEFT = 54, RIGHT = 26;
 var S = newState();
 var info = { name: '', group: '', date: today(), inst: 'piano', bpm: 76 };
-var ui = { voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write' };
+var ui = { voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
 function newState() {
@@ -113,7 +113,30 @@ function keyLabel() { return keyInfo(S.key)[2] + ':'; }
 function pushHist() { hist.push(JSON.stringify(S)); if (hist.length > 120) hist.shift(); redo = []; }
 function undo() { if (!hist.length) return; redo.push(JSON.stringify(S)); S = JSON.parse(hist.pop()); refresh(); }
 function redoIt() { if (!redo.length) return; hist.push(JSON.stringify(S)); S = JSON.parse(redo.pop()); refresh(); }
+function keyOfB(b) { var k = null; Object.keys(DUR).forEach(function (x) { if (Math.abs(DUR[x].b - b) < EPS) k = x; }); return k; }
+function startOf(ci, vi) { for (var j = ci; j >= 0; j--) { var e = S.cols[j].v[vi]; if (!e) return -1; if (!e.h) return j; } return -1; }
+function effEntry(cols, ci, vi) { var e = cols[ci].v[vi]; if (!e || !e.h) return e; for (var j = ci - 1; j >= 0; j--) { var f = cols[j].v[vi]; if (f && !f.h) return f; if (!f) return null; } return null; }
+function fixHolds(cols) {
+  cols.forEach(function (c) { for (var vi = 0; vi < 4; vi++) if (c.v[vi] && c.v[vi].h) c.v[vi] = null; });
+  var part = partition(cols, TIMES[S.time].b), mi = {};
+  part.ms.forEach(function (m, k) { m.forEach(function (i) { mi[i] = k; }); });
+  for (var vi = 0; vi < 4; vi++) {
+    for (var ci = 0; ci < cols.length; ci++) {
+      var e = cols[ci].v[vi]; if (!e || !e.d) continue;
+      var need = DUR[e.d] ? DUR[e.d].b : 0, acc = DUR[cols[ci].d].b, j = ci + 1, cov = [];
+      while (acc < need - EPS && j < cols.length && mi[j] === mi[ci] && !cols[j].v[vi]) { acc += DUR[cols[j].d].b; cov.push(j); j++; }
+      if (cov.length && Math.abs(acc - need) < EPS) cov.forEach(function (x) { cols[x].v[vi] = { h: 1 }; }); else delete e.d;
+    }
+  }
+}
+function tryEdit(fn) {
+  var before = JSON.stringify(S), err = fn();
+  if (err) { S = JSON.parse(before); msg(err); return false; }
+  hist.push(before); if (hist.length > 120) hist.shift(); redo = [];
+  normalize(); refresh(); return true;
+}
 function normalize() {
+  fixHolds(S.cols);
   if (!S.lock) {
     while (S.cols.length) {
       var c = S.cols[S.cols.length - 1];
@@ -137,10 +160,9 @@ function msg(t, ok) { var m = $('msg'); m.textContent = t || ''; m.className = o
 
 /* ================= dibujo ================= */
 function styleNote(n, o, vi) { if (o.color) { var c = VOICES[vi].c; n.setStyle({ fillStyle: c, strokeStyle: c }); } }
-function makeBeams(idxs, notes, kinds, o, vi) {
+function makeBeams(idxs, notes, kinds, o, vi, bs) {
   var bl = TIMES[S.time].g, pos = (idxs[0] === 0 && S.pickup) ? TIMES[S.time].b - S.pickup : 0, groups = {}, out = [];
-  idxs.forEach(function (ci, i) {
-    var b = DUR[S.cols[ci].d].b;
+  bs.forEach(function (b, i) {
     if (kinds[i]) { var g = Math.floor((pos + EPS) / bl); (groups[g] = groups[g] || []).push(i); }
     pos += b;
   });
@@ -163,9 +185,11 @@ function padsFor(idxs, mlen) {
 function mkVoices(idxs, vis, clef, o, alts, pads) {
   var T = TIMES[S.time], voices = [], notes = [], beams = [];
   vis.forEach(function (vi) {
-    var arr = [], kinds = [];
+    var arr = [], kinds = [], bs = [];
     idxs.forEach(function (ci) {
-      var c = S.cols[ci], d = DUR[c.d], e = c.v[vi], dstr = d.vf + (d.dots ? 'd' : ''), n;
+      var c = S.cols[ci], e = c.v[vi], n;
+      if (e && e.h) return;
+      var key = (e && e.d) ? e.d : c.d, d = DUR[key], dstr = d.vf + (d.dots ? 'd' : '');
       if (!e) { n = new VF.GhostNote({ duration: dstr }); kinds.push(false); }
       else if (e.r) {
         n = new VF.StaveNote({ keys: [clef === 'treble' ? 'b/4' : 'd/3'], duration: dstr + 'r', clef: clef });
@@ -174,17 +198,20 @@ function mkVoices(idxs, vis, clef, o, alts, pads) {
       } else {
         n = new VF.StaveNote({ keys: [vfKey(e, alts)], duration: dstr, clef: clef, stem_direction: VOICES[vi].dir });
         if (d.dots) n.addModifier(new VF.Dot(), 0);
-        styleNote(n, o, vi); kinds.push(c.d === 'e');
+        styleNote(n, o, vi); kinds.push(key === 'e');
       }
-      arr.push(n);
+      arr.push(n); bs.push(d.b);
     });
     (pads || []).forEach(function (ds) { arr.push(new VF.GhostNote({ duration: ds })); });
     var v = new VF.Voice({ num_beats: T.nb, beat_value: T.bv }).setStrict(false);
     v.addTickables(arr);
     voices.push(v); notes.push(arr);
-    beams = beams.concat(makeBeams(idxs, arr, kinds, o, vi));
+    beams = beams.concat(makeBeams(idxs, arr, kinds, o, vi, bs));
   });
-  return { voices: voices, notes: notes, beams: beams };
+  var grid = idxs.map(function (ci) { var d = DUR[S.cols[ci].d]; return new VF.GhostNote({ duration: d.vf + (d.dots ? 'd' : '') }); });
+  (pads || []).forEach(function (ds) { grid.push(new VF.GhostNote({ duration: ds })); });
+  var gv = new VF.Voice({ num_beats: T.nb, beat_value: T.bv }).setStrict(false); gv.addTickables(grid); voices.push(gv);
+  return { voices: voices, notes: notes, beams: beams, grid: grid };
 }
 var SVGNS = 'http://www.w3.org/2000/svg';
 function svgEl(name, attrs, parent) {
@@ -249,7 +276,7 @@ function render(host, o) {
         bv.voices.forEach(function (v) { v.draw(ctx, ba); });
         tv.beams.concat(bv.beams).forEach(function (b) { b.setContext(ctx).draw(); });
         idxs.forEach(function (ci, j) {
-          var cx = tv.notes[0][j].getAbsoluteX() + 6;
+          var cx = tv.grid[j].getAbsoluteX() + 6;
           sys.cols.push({ idx: ci, x: cx, k: k }); L.cols[ci] = { sys: s, x: cx };
         });
       }
@@ -400,6 +427,31 @@ function updatePreview(p) {
   svgEl('ellipse', { cx: x, cy: pt.y, rx: 6.4, ry: 4.6, fill: c, 'fill-opacity': 0.55, transform: 'rotate(-18 ' + x + ' ' + pt.y + ')' }, g);
   if (ui.acc !== 'auto') svgText(g, x - 17, pt.y + 5, accSym(ui.acc) || '♮', 15, { fill: c });
 }
+function writeNote(ci, vi, nv, D) {
+  var c = S.cols[ci], cur = c.v[vi];
+  if (cur && cur.h) { var st = startOf(ci, vi); if (st >= 0 && S.cols[st].v[vi]) delete S.cols[st].v[vi].d; fixHolds(S.cols); cur = c.v[vi]; }
+  if (nv === null) { c.v[vi] = null; return null; }
+  var cb = DUR[c.d].b, Db = DUR[D].b, k;
+  if (Math.abs(Db - cb) < EPS) { c.v[vi] = nv; return null; }
+  if (Db < cb) {
+    var rk = keyOfB(cb - Db);
+    if (!rk) return 'Esa figura no deja un valor posible para el resto del acorde. Prueba con otra figura.';
+    for (k = 0; k < 4; k++) { var e = c.v[k]; if (k !== vi && e && !e.h && !e.d) e.d = c.d; }
+    c.d = D; S.cols.splice(ci + 1, 0, { d: rk, v: [null, null, null, null], rn: null, cs: null });
+    c.v[vi] = nv; fixHolds(S.cols); return null;
+  }
+  nv.d = D; c.v[vi] = nv;
+  var acc = cb, j = ci + 1;
+  while (acc < Db - EPS && j < S.cols.length && !S.cols[j].v[vi]) { acc += DUR[S.cols[j].d].b; j++; }
+  if (acc < Db - EPS && j >= S.cols.length) {
+    var rem = Db - acc, PK = ['w', 'hd', 'h', 'qd', 'q', 'e'];
+    for (k = 0; k < PK.length && rem > EPS; k++) while (rem + EPS >= DUR[PK[k]].b) { S.cols.push({ d: PK[k], v: [null, null, null, null], rn: null, cs: null }); rem -= DUR[PK[k]].b; }
+    if (!partition(S.cols, TIMES[S.time].b).ok || usedMeasures(partition(S.cols, TIMES[S.time].b)) > S.measures) return 'No cabe: se pasaría del compás o del número de compases.';
+  }
+  fixHolds(S.cols);
+  if (!c.v[vi].d) return 'No cabe esa figura: la voz tiene notas en los acordes siguientes del compás, o no completa el tiempo. Bórralas o elige una figura más corta.';
+  return null;
+}
 function onClick(p, right) {
   var h = hitTest(p); if (!h) return;
   var vi = ui.voice, mode = right ? 'del' : ui.mode, mlen = TIMES[S.time].b;
@@ -407,15 +459,15 @@ function onClick(p, right) {
   if (S.lock && vi === 0 && mode !== 'delchord') { msg('La soprano es la melodía dada y no se puede modificar.'); return; }
   if (mode === 'write') {
     if (h.col != null) {
-      mutate(function () {
-        var c = S.cols[h.col], cur = c.v[vi], nv;
-        if (ui.rest) nv = { r: 1 };
-        else {
-          var pt = pitchAt(vi, p.y, h.sys); nv = { l: pt.l, o: pt.o, a: pt.a };
-          if (cur && !cur.r && cur.l === nv.l && cur.o === nv.o && cur.a === nv.a) nv = null;
-        }
-        c.v[vi] = nv;
-      });
+      var cc = S.cols[h.col], cur0 = cc.v[vi], nv;
+      if (ui.rest) nv = { r: 1 };
+      else {
+        var pt = pitchAt(vi, p.y, h.sys); nv = { l: pt.l, o: pt.o, a: pt.a };
+        if (cur0 && !cur0.r && !cur0.h && cur0.l === nv.l && cur0.o === nv.o && cur0.a === nv.a) nv = null;
+      }
+      var D = ui.own ? ui.dur : cc.d;
+      if (!ui.own && ui.dur !== cc.d && nv) msg('La nota usa la figura de ese acorde. Para otra figura en esta voz, activa «Ritmo propio por voz».');
+      tryEdit(function () { return writeNote(h.col, vi, nv, D); });
       ui.acc = 'auto'; syncUI();
     } else if (h.append) {
       if (S.lock) { msg('Este ejercicio tiene el ritmo fijo: completa las voces sobre los acordes existentes.'); return; }
@@ -443,7 +495,7 @@ function onClick(p, right) {
     mutate(function () { S.cols[h.col].d = ui.dur; });
   } else if (mode === 'del') {
     if (h.col == null) return;
-    mutate(function () { S.cols[h.col].v[vi] = null; });
+    mutate(function () { var st = startOf(h.col, vi); if (st < 0) st = h.col; S.cols[st].v[vi] = null; });
   } else if (mode === 'delchord') {
     if (h.col == null) return;
     mutate(function () { var c = S.cols[h.col]; for (var i = S.lock ? 1 : 0; i < 4; i++) c.v[i] = null; c.rn = null; c.cs = null; });
@@ -612,6 +664,7 @@ function buildStaticUI() {
     mutate(function () { S.pickup = v; if (v && !cur) S.measures += 1; else if (!v && cur) S.measures = Math.max(1, S.measures - 1); });
   });
   $('sPer').addEventListener('change', function () { var n = parseInt(this.value, 10); mutate(function () { S.perSystem = n; }); });
+  $('cOwn').addEventListener('change', function () { ui.own = this.checked; msg(ui.own ? 'Ritmo propio activado: la figura elegida vale solo para la voz que escribes.' : '', true); });
   $('cLines').addEventListener('change', function () { var v = this.checked; mutate(function () { S.lines = v; }); });
   $('iName').addEventListener('input', function () { info.name = this.value; save(); });
   $('iGroup').addEventListener('input', function () { info.group = this.value; save(); });
@@ -768,7 +821,7 @@ function togglePlay() {
   var spq = 60 / (info.bpm || 76), inst = info.inst || 'piano', ev = [], tt = 0, timers = [];
   S.cols.forEach(function (c, i) {
     var dur = DUR[c.d].b * spq;
-    c.v.forEach(function (e) { if (e && !e.r) ev.push({ t: tt, dur: dur, m: midi(e) }); });
+    c.v.forEach(function (e) { if (e && !e.r && !e.h) ev.push({ t: tt, dur: e.d ? DUR[e.d].b * spq : dur, m: midi(e) }); });
     ev.push({ t: tt, hl: i });
     tt += dur;
   });
@@ -804,7 +857,8 @@ function runChecks() {
   var pk = S.pickup || 0;
   part.ms.forEach(function (m, k) { var a = (k === 0 && pk) ? mlen - pk : 0; m.forEach(function (i) { where[i] = (pk ? (k === 0 ? 'Anacrusa' : 'Compás ' + k) : 'Compás ' + (k + 1)) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
   var lt = (tonicPC(S.key) + 11) % 12;
-  function np(c, vi) { var e = c.v[vi]; return e && !e.r ? e : null; }
+  var EFF = new Map(); cols.forEach(function (c, i) { EFF.set(c, [0, 1, 2, 3].map(function (v) { return effEntry(cols, i, v); })); });
+  function np(c, vi) { var e = EFF.get(c)[vi]; return e && !e.r ? e : null; }
   function add(i, t) { out.push({ ci: i, t: where[i] + ': ' + t }); }
   var names = VOICES.map(function (v) { return v.n; });
   cols.forEach(function (c, i) {
@@ -955,7 +1009,7 @@ function genCode() {
   if (bad) { msg('Hay acordes sin nota de soprano. Completa la melodía antes de generar el código.'); return; }
   var o = {
     v: 1, t: $('tTitle').value.trim(), k: S.key, m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
-    s: S.cols.map(function (c) { var e = c.v[0]; return [c.d, e.r ? 'r' : e.l + e.o + ':' + e.a]; })
+    s: S.cols.filter(function (c) { return !c.v[0].h; }).map(function (c) { var e = c.v[0]; return [e.d || c.d, e.r ? 'r' : e.l + e.o + ':' + e.a]; })
   };
   $('tOut').value = packCode(o); msg('Código generado.', true);
 }
