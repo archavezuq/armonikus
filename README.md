@@ -9,6 +9,7 @@ Es un solo archivo HTML autocontenido: `dist/Editor_Escritura_4_Voces.html`. La 
 ## Qué hace
 
 - Gran pentagrama con 30 armaduras (mayores y menores) y compases 4/4, 3/4, 2/4, 2/2 y 6/8.
+- Anacrusa (antecompás) opcional al inicio, de corchea a blanca con puntillo.
 - Escritura por clic en cada voz (S, A, T, B), con figuras de redonda a corchea, puntillos, silencios y alteraciones (♭ ♮ ♯).
 - Grado en cifrado romano (inversiones, séptima, dominantes secundarias como V/V, sexta aumentada y napolitana) y cifrado americano (con bajo, ej. `C/E`) para cada acorde.
 - Opción de marcar con líneas los grados mayores (IV, V en modo mayor; III, V, VI en menor).

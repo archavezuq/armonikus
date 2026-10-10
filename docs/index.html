@@ -108,6 +108,7 @@ textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px}
     <div class="row">
       <label class="grp"><span class="t">Tonalidad (armadura)</span><select id="sKey"></select></label>
       <label class="grp"><span class="t">Compás</span><select id="sTime"><option>4/4</option><option>3/4</option><option>2/4</option><option>2/2</option><option>6/8</option></select></label>
+      <label class="grp"><span class="t">Anacrusa (antecompás)</span><select id="sPick"><option value="0">Sin anacrusa</option></select></label>
       <label class="grp"><span class="t">N.º de compases</span><input type="number" id="nMeas" min="1" max="16" value="4"></label>
       <label class="grp"><span class="t">Compases por sistema</span><select id="sPer"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
       <label class="chk"><input type="checkbox" id="cLines" checked> Líneas en grados mayores (IV, V…)</label>
@@ -231,7 +232,7 @@ var ui = { voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write' };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
 function newState() {
-  return { etitle: '', key: 'C', time: '4/4', measures: 4, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
+  return { etitle: '', key: 'C', time: '4/4', measures: 4, pickup: 0, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function $(id) { return document.getElementById(id); }
@@ -256,13 +257,14 @@ function vfKey(p, alts) {
   else if (alts[p.l] !== 0) s += 'n';
   return s + '/' + p.o;
 }
-function partition(cols, mlen) {
+function partition(cols, mlen, pk) {
+  if (pk === undefined) pk = S.pickup || 0;
   var ms = [[]], acc = 0, ok = true, bad = -1;
   cols.forEach(function (c, i) {
-    var b = DUR[c.d].b;
-    if (acc + b > mlen + EPS) { ok = false; if (bad < 0) bad = i; }
+    var b = DUR[c.d].b, ml = (ms.length === 1 && pk) ? pk : mlen;
+    if (acc + b > ml + EPS) { ok = false; if (bad < 0) bad = i; }
     ms[ms.length - 1].push(i); acc += b;
-    if (Math.abs(acc - mlen) < EPS || acc > mlen) { ms.push([]); acc = 0; }
+    if (Math.abs(acc - ml) < EPS || acc > ml) { ms.push([]); acc = 0; }
   });
   return { ms: ms, acc: acc, ok: ok, bad: bad };
 }
@@ -293,6 +295,13 @@ function normalize() {
   if (S.measures < u) S.measures = u;
   if (S.measures < 1) S.measures = 1;
 }
+var PICKS = [[0.5, 'Corchea'], [1, 'Negra'], [1.5, 'Negra con puntillo'], [2, 'Blanca'], [3, 'Blanca con puntillo']];
+function fillPick() {
+  var sel = $('sPick'), b = TIMES[S.time].b, h = '<option value="0">Sin anacrusa</option>';
+  PICKS.forEach(function (p) { if (p[0] < b) h += '<option value="' + p[0] + '">' + p[1] + '</option>'; });
+  if (sel.dataset.b !== String(b)) { sel.innerHTML = h; sel.dataset.b = String(b); }
+  sel.value = String(S.pickup || 0);
+}
 function mutate(fn) { pushHist(); fn(); normalize(); refresh(); }
 function save() { try { localStorage.setItem('lm3_satb_v1', JSON.stringify({ S: S, info: info })); } catch (e) { } }
 function msg(t, ok) { var m = $('msg'); m.textContent = t || ''; m.className = ok ? 'ok' : ''; }
@@ -300,7 +309,7 @@ function msg(t, ok) { var m = $('msg'); m.textContent = t || ''; m.className = o
 /* ================= dibujo ================= */
 function styleNote(n, o, vi) { if (o.color) { var c = VOICES[vi].c; n.setStyle({ fillStyle: c, strokeStyle: c }); } }
 function makeBeams(idxs, notes, kinds, o, vi) {
-  var bl = TIMES[S.time].g, pos = 0, groups = {}, out = [];
+  var bl = TIMES[S.time].g, pos = (idxs[0] === 0 && S.pickup) ? TIMES[S.time].b - S.pickup : 0, groups = {}, out = [];
   idxs.forEach(function (ci, i) {
     var b = DUR[S.cols[ci].d].b;
     if (kinds[i]) { var g = Math.floor((pos + EPS) / bl); (groups[g] = groups[g] || []).push(i); }
@@ -380,7 +389,7 @@ function render(host, o) {
     var pad0 = 46 + 10 * nAcc + (s === 0 ? 30 : 0);
     var avail = W - LEFT - RIGHT - pad0, wts = [], tot = 0, k;
     var padsK = {};
-    for (k = m0; k < m1; k++) { padsK[k] = padsFor(part.ms[k] || [], mlen); var w = Math.max(3, (part.ms[k] || []).length + padsK[k].length); wts.push(w); tot += w; }
+    for (k = m0; k < m1; k++) { padsK[k] = padsFor(part.ms[k] || [], (k === 0 && S.pickup) ? S.pickup : mlen); var w = Math.max(3, (part.ms[k] || []).length + padsK[k].length); wts.push(w); tot += w; }
     if (nSys > 1) tot += 4 * (per - cnt);
     var x = LEFT, sys = { i: s, top: top, yT: yT, yB: yB, ms: [], cols: [] };
     for (k = m0; k < m1; k++) {
@@ -583,7 +592,7 @@ function onClick(p, right) {
       if (S.lock) { msg('Este ejercicio tiene el ritmo fijo: completa las voces sobre los acordes existentes.'); return; }
       var part = layout.part, last = part.ms[part.ms.length - 1], acc = 0;
       last.forEach(function (i) { acc += DUR[S.cols[i].d].b; });
-      if (acc + DUR[ui.dur].b > mlen + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return; }
+      if (acc + DUR[ui.dur].b > ((part.ms.length === 1 && S.pickup) ? S.pickup : mlen) + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return; }
       mutate(function () {
         var v = [null, null, null, null];
         if (ui.rest) v[vi] = { r: 1 }; else { var pt = pitchAt(vi, p.y, h.sys); v[vi] = { l: pt.l, o: pt.o, a: pt.a }; }
@@ -759,12 +768,19 @@ function buildStaticUI() {
   $('sKey').addEventListener('change', function () { var v = this.value; mutate(function () { S.key = v; }); });
   $('sTime').addEventListener('change', function () {
     var v = this.value, old = S.time; S.time = v;
-    var p = partition(S.cols, TIMES[v].b); S.time = old;
+    var pk = S.pickup && S.pickup < TIMES[v].b ? S.pickup : 0;
+    var p = partition(S.cols, TIMES[v].b, pk); S.time = old;
     if (!p.ok) { msg('Con ese compás algún acorde cruzaría la barra. Cambia o borra figuras primero.'); syncUI(); return; }
-    mutate(function () { S.time = v; });
+    mutate(function () { S.time = v; if ((S.pickup || 0) !== pk) { S.pickup = pk; if (!pk) S.measures = Math.max(1, S.measures - 1); } });
   });
   $('nMeas').addEventListener('change', function () {
-    var n = Math.max(1, Math.min(16, parseInt(this.value, 10) || 1)); mutate(function () { S.measures = n; });
+    var n = Math.max(1, Math.min(16, parseInt(this.value, 10) || 1)); mutate(function () { S.measures = n + (S.pickup ? 1 : 0); });
+  });
+  $('sPick').addEventListener('change', function () {
+    var v = parseFloat(this.value) || 0, cur = S.pickup || 0; if (v === cur) return;
+    var p = partition(S.cols, TIMES[S.time].b, v);
+    if (!p.ok) { msg('Con esa anacrusa algún acorde cruzaría la barra. Borra o cambia figuras primero.'); syncUI(); return; }
+    mutate(function () { S.pickup = v; if (v && !cur) S.measures += 1; else if (!v && cur) S.measures = Math.max(1, S.measures - 1); });
   });
   $('sPer').addEventListener('change', function () { var n = parseInt(this.value, 10); mutate(function () { S.perSystem = n; }); });
   $('cLines').addEventListener('change', function () { var v = this.checked; mutate(function () { S.lines = v; }); });
@@ -800,7 +816,7 @@ function buildStaticUI() {
   window.addEventListener('resize', fit);
 }
 function syncUI() {
-  $('sKey').value = S.key; $('sTime').value = S.time; $('nMeas').value = S.measures; $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
+  $('sKey').value = S.key; $('sTime').value = S.time; $('nMeas').value = S.measures - (S.pickup ? 1 : 0); fillPick(); $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
   $('iName').value = info.name; $('iGroup').value = info.group; $('iDate').value = info.date; $('sInst').value = info.inst || 'piano'; $('nBpm').value = info.bpm || 76;
   Array.prototype.forEach.call(document.querySelectorAll('#bVoice button'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
   Array.prototype.forEach.call(document.querySelectorAll('#bDur button'), function (b) { b.classList.toggle('on', b.dataset.d === ui.dur); });
@@ -808,7 +824,7 @@ function syncUI() {
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
   var lk = !!S.lock;
-  ['sKey', 'sTime', 'nMeas'].forEach(function (id) { $(id).disabled = lk; });
+  ['sKey', 'sTime', 'nMeas', 'sPick'].forEach(function (id) { $(id).disabled = lk; });
   $('bCheck').style.display = S.chk ? '' : 'none';
   $('bUndo').disabled = !hist.length; $('bRedo').disabled = !redo.length;
   var sb = document.querySelector('#bVoice button[data-v="0"]'); sb.textContent = lk ? 'S 🔒' : 'S';
@@ -956,7 +972,8 @@ function highlight(ci) {
 /* ================= revisor ================= */
 function runChecks() {
   var cols = S.cols, mlen = TIMES[S.time].b, part = partition(cols, mlen), where = {}, out = [], pos = {};
-  part.ms.forEach(function (m, k) { var a = 0; m.forEach(function (i) { where[i] = 'Compás ' + (k + 1) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
+  var pk = S.pickup || 0;
+  part.ms.forEach(function (m, k) { var a = (k === 0 && pk) ? mlen - pk : 0; m.forEach(function (i) { where[i] = (pk ? (k === 0 ? 'Anacrusa' : 'Compás ' + k) : 'Compás ' + (k + 1)) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
   var lt = (tonicPC(S.key) + 11) % 12;
   function np(c, vi) { var e = c.v[vi]; return e && !e.r ? e : null; }
   function add(i, t) { out.push({ ci: i, t: where[i] + ': ' + t }); }
@@ -1092,12 +1109,12 @@ function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.lengt
 var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', e: 'e' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
 function packCode(o) {
   var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '0' ? '' : a); }); return DCH[r[0]] + p; }).join('');
-  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes;
+  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes;
 }
 function unpackCode(str) {
   var p = str.split('.'); if (p[0] !== 'A1' || p.length !== 6) throw 0;
   var key = p[1].replace('s', '#'), tm = p[2].replace(/^(\d)(\d)$/, '$1/$2'), g = p[3].split('-');
-  var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], s: [] };
+  var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], pk: (+g[3] || 0) / 2, s: [] };
   var re = /([wHhQqe])(r|([a-g])(\d)([-+]?))/g, m, used = 0;
   while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : 0)]); }
   if (used !== p[5].length) throw 0;
@@ -1108,7 +1125,7 @@ function genCode() {
   if (!S.cols.length) { msg('Escribe primero la melodía en la voz Soprano.'); return; }
   if (bad) { msg('Hay acordes sin nota de soprano. Completa la melodía antes de generar el código.'); return; }
   var o = {
-    v: 1, t: $('tTitle').value.trim(), k: S.key, m: S.time, n: S.measures, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
+    v: 1, t: $('tTitle').value.trim(), k: S.key, m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
     s: S.cols.map(function (c) { var e = c.v[0]; return [c.d, e.r ? 'r' : e.l + e.o + ':' + e.a]; })
   };
   $('tOut').value = packCode(o); msg('Código generado.', true);
@@ -1119,14 +1136,14 @@ function loadCode(str) {
   try {
     var o = str.indexOf('A1.') === 0 ? unpackCode(str) : JSON.parse(unb64u(str));
     if (!o || o.v !== 1 || !KEYS.some(function (k) { return k[0] === o.k; }) || !TIMES[o.m]) throw 0;
-    var ns = newState(); ns.etitle = o.t || ''; ns.key = o.k; ns.time = o.m; ns.measures = o.n || 4; ns.perSystem = o.p || 4; ns.lock = !!o.l; ns.chk = o.c !== 0;
+    var ns = newState(); ns.etitle = o.t || ''; ns.key = o.k; ns.time = o.m; ns.measures = o.n || 4; ns.pickup = o.pk || 0; ns.perSystem = o.p || 4; ns.lock = !!o.l; ns.chk = o.c !== 0;
     ns.lines = S.lines;
     o.s.forEach(function (r) {
       if (!DUR[r[0]]) throw 0; var v = [null, null, null, null];
       if (r[1] === 'r') v[0] = { r: 1 }; else { var m = /^([a-g])(\d):(-?\d)$/.exec(r[1]); if (!m) throw 0; v[0] = { l: m[1], o: +m[2], a: +m[3] }; }
       ns.cols.push({ d: r[0], v: v, rn: null, cs: null });
     });
-    if (!partition(ns.cols, TIMES[ns.time].b).ok) throw 0;
+    if (!partition(ns.cols, TIMES[ns.time].b, ns.pickup).ok) throw 0;
     pushHist(); S = ns; ui.voice = ns.lock ? 1 : 0; normalize(); refresh();
     msg((S.etitle ? S.etitle + ': ' : '') + 'ejercicio cargado.' + (S.lock ? ' Completa Alto, Tenor y Bajo, y pon grados y cifrado.' : ''), true);
   } catch (e) { msg('El código no es válido. Cópialo completo, tal como lo dejó el docente.'); }
