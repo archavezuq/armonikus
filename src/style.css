@@ -1,0 +1,67 @@
+:root{--ink:#1c2430;--mut:#5c6675;--line:#d3d9e1;--acc:#2a5db0;--soft:#f4f6fa}
+*{box-sizing:border-box}
+html,body{margin:0;background:#fff;color:var(--ink);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+#app{max-width:1020px;margin:0 auto;padding:12px}
+h1{font-size:19px;margin:0 0 2px}
+.sub{color:var(--mut);margin:0 0 10px;font-size:13px}
+.panel{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--soft)}
+.row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:flex-end}
+.row+.row{margin-top:10px}
+.grp{display:flex;flex-direction:column;gap:3px}
+.grp>.t{font-size:11.5px;color:var(--mut)}
+.grp>.b{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+input[type=text],input[type=date],input[type=number],select,textarea{font:inherit;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+input[type=number]{width:62px}
+button{font:inherit;cursor:pointer;border:1px solid #b9c2cf;background:#fff;color:var(--ink);border-radius:7px;padding:5px 10px}
+button:hover{background:#eaf1fb}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+button.vb{min-width:46px;font-weight:700;border-width:2px;border-color:var(--c);color:var(--c)}
+button.vb.on{background:var(--c);color:#fff}
+button.db{padding:3px 6px;display:flex;align-items:center}
+button.db svg{display:block}
+button.big{background:var(--acc);color:#fff;border-color:var(--acc);font-weight:600}
+button.big:hover{background:#214c92}
+.chk{display:flex;gap:5px;align-items:center;font-size:13px}
+#viewport{overflow-x:auto;overflow-y:hidden;border:1px solid var(--line);border-radius:10px;background:#fff}
+#stage{position:relative;transform-origin:0 0;background:#fff}
+#scoreHost svg{display:block}
+#ov{position:absolute;left:0;top:0;pointer-events:none}
+#slots{position:absolute;left:0;top:0}
+#slots .slot{position:absolute;display:flex;align-items:center;justify-content:center;height:24px;border:1px dashed #c0c8d3;border-radius:5px;background:rgba(255,255,255,.8);color:var(--ink);cursor:pointer;padding:0;line-height:1;font-size:14px;overflow:hidden;white-space:nowrap}
+#slots .slot.filled{border-color:transparent;background:transparent}
+#slots .slot:hover{border-color:var(--acc);background:#eaf1fb}
+#slots .slot.cs{font-family:system-ui,Arial,sans-serif;font-weight:600}
+#slots .slot.rn{font-family:Georgia,"Times New Roman",serif;font-size:17px}
+.rnb.mj{border-top:1.6px solid #111;border-bottom:1.6px solid #111;padding:0 2px}
+.fig{display:inline-flex;flex-direction:column;font-size:.62em;line-height:.95;margin-left:1px}
+.fig i{font-style:normal}
+#msg{min-height:22px;margin:8px 2px;color:#8a3b00;font-size:13px}
+#msg.ok{color:#1d6b3a}
+#report{margin:6px 0 10px}
+#report ul{margin:6px 0 0 18px;padding:0}
+#report li{margin:2px 0}
+#report .good{color:#1d6b3a;font-weight:600}
+#report .note{color:var(--mut);font-size:12.5px;margin-top:6px}
+details.panel summary{cursor:pointer;font-weight:600}
+details.panel p,details.panel li{font-size:13px}
+textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+#palette{position:fixed;z-index:60;max-height:92vh;overflow:auto;background:#fff;border:1px solid #98a4b5;border-radius:10px;box-shadow:0 8px 26px rgba(0,0,0,.2);padding:10px;max-width:94vw}
+#palette[hidden]{display:none}
+#palette h4{margin:6px 0 3px;font-size:12px;color:var(--mut);font-weight:600}
+#palette h4:first-child{margin-top:0}
+#palette .pr{display:flex;gap:4px;flex-wrap:wrap;margin:3px 0}
+#palette .pr button{min-width:36px;padding:4px 6px;font-family:Georgia,serif;font-size:15px}
+#palette .pr button.sel{background:var(--acc);color:#fff;border-color:var(--acc)}
+#palette .grid{display:grid;grid-template-columns:22px repeat(7,36px);gap:3px;align-items:center}
+#palette .grid span{font-size:15px;color:var(--mut);text-align:center}
+#palette .grid button{padding:4px 0;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600}
+#palette .grid button.sel{background:var(--acc);color:#fff;border-color:var(--acc)}
+#palette .foot{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
+#printArea{display:none}
+@media print{
+  #app,#palette{display:none!important}
+  #printArea{display:block}
+  #printArea svg{width:100%;height:auto}
+  @page{size:letter portrait;margin:10mm}
+}

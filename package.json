@@ -1,0 +1,9 @@
+{
+  "name": "armonikus",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Armonikus: herramientas web de escritura musical. Módulo actual: escritura a cuatro voces (SATB)",
+  "dependencies": {
+    "vexflow": "4.2.5"
+  }
+}

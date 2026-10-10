@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Armonikus · Escritura a cuatro voces</title>
+<style>
+/*CSS*/
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Armonikus <span style="font-weight:400;color:var(--mut)">· Escritura a cuatro voces (SATB)</span></h1>
+  <p class="sub">Lenguaje Musical III · Instituto de Bellas Artes, Universidad del Quindío. Escribe tu ejercicio, descárgalo y súbelo en la tarea.</p>
+
+  <details class="panel" id="help">
+    <summary>¿Cómo se usa?</summary>
+    <ol>
+      <li>Si el docente dejó un <b>código de ejercicio</b>, pégalo en «Cargar ejercicio» y pulsa <i>Cargar</i>. Si no, elige tonalidad, compás y número de compases.</li>
+      <li>Elige la <b>voz</b> (S, A, T, B) y la <b>figura</b>. Haz clic en el pentagrama a la altura de la nota. El primer clic en el compás sombreado crea un acorde nuevo; en los siguientes, haz clic sobre el acorde que quieras completar.</li>
+      <li>Para una nota fuera de la armadura, elige antes ♭, ♮ o ♯. Para borrar, vuelve a hacer clic sobre la misma nota o usa clic derecho.</li>
+      <li>Debajo de cada acorde pon el <b>grado</b> (cifrado romano) y encima el <b>cifrado americano</b>: haz clic en los recuadros.</li>
+      <li>Escribe tu nombre y pulsa <i>Descargar imagen (PNG)</i> o <i>Imprimir / guardar PDF</i>. Sube ese archivo en la tarea de Moodle.</li>
+    </ol>
+    <p>Atajos: teclas 1, 2, 3, 4 cambian de voz · Ctrl+Z deshace · Ctrl+Y rehace.</p>
+  </details>
+
+  <div class="panel">
+    <div class="row">
+      <label class="grp"><span class="t">Nombre del estudiante</span><input type="text" id="iName" size="26" autocomplete="off"></label>
+      <label class="grp"><span class="t">Grupo</span><input type="text" id="iGroup" size="8" autocomplete="off"></label>
+      <label class="grp"><span class="t">Fecha</span><input type="date" id="iDate"></label>
+    </div>
+  </div>
+
+  <div class="panel" id="tools">
+    <div class="row">
+      <label class="grp"><span class="t">Tonalidad (armadura)</span><select id="sKey"></select></label>
+      <label class="grp"><span class="t">Compás</span><select id="sTime"><option>4/4</option><option>3/4</option><option>2/4</option><option>2/2</option><option>6/8</option></select></label>
+      <label class="grp"><span class="t">N.º de compases</span><input type="number" id="nMeas" min="1" max="16" value="4"></label>
+      <label class="grp"><span class="t">Compases por sistema</span><select id="sPer"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
+      <label class="chk"><input type="checkbox" id="cLines" checked> Líneas en grados mayores (IV, V…)</label>
+    </div>
+    <div class="row">
+      <div class="grp"><span class="t">Voz</span><div class="b" id="bVoice"></div></div>
+      <div class="grp"><span class="t">Figura</span><div class="b" id="bDur"></div></div>
+      <div class="grp"><span class="t">Silencio / alteración</span><div class="b"><button id="bRest" title="Escribir silencio">Silencio</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button></div></div>
+      <div class="grp"><span class="t">Herramienta</span><div class="b" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button></div></div>
+    </div>
+    <div class="row">
+      <div class="grp"><span class="t">Edición</span><div class="b"><button id="bUndo">Deshacer</button><button id="bRedo">Rehacer</button></div></div>
+      <div class="grp"><span class="t">Escuchar</span><div class="b"><button id="bPlay">▶ Escuchar</button><select id="sInst" title="Instrumento"></select><label class="chk" title="Negras por minuto">Tempo <input type="number" id="nBpm" min="40" max="160" value="76"></label></div></div>
+      <div class="grp"><span class="t">Revisión</span><div class="b"><button id="bCheck">Revisar errores</button></div></div>
+      <div class="grp"><span class="t">Entregar</span><div class="b"><button id="bPng" class="big">Descargar imagen (PNG)</button><button id="bPrint">Imprimir / guardar PDF</button></div></div>
+      <div class="grp"><span class="t">Continuar después</span><div class="b"><button id="bSave">Guardar trabajo</button><button id="bOpen" title="Abre un archivo .json o un PNG descargado de esta página">Abrir trabajo (.json o PNG)</button><input type="file" id="fOpen" accept=".json,application/json,.png,image/png" hidden></div></div>
+    </div>
+    <div class="row">
+      <label class="grp"><span class="t">Cargar ejercicio (código del docente)</span><span class="b"><input type="text" id="iCode" placeholder="Pega aquí el código" style="width:min(420px,70vw)"><button id="bLoad">Cargar</button></span></label>
+    </div>
+  </div>
+
+  <div id="msg" role="status"></div>
+  <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
+  <div id="report"></div>
+
+  <details class="panel" id="teacher">
+    <summary>Modo docente: crear el código de un ejercicio</summary>
+    <ol>
+      <li>Elige tonalidad, compás y número de compases arriba.</li>
+      <li>Escribe la melodía en la voz <b>Soprano</b> (solo S).</li>
+      <li>Marca las opciones y pulsa <i>Generar código</i>. Pega el código (o el enlace) en la descripción de la tarea.</li>
+    </ol>
+    <p><b>Revisar una entrega:</b> descarga el PNG del estudiante desde Moodle y ábrelo con «Abrir trabajo (.json o PNG)». Carga el ejercicio completo y puedes escucharlo, usar «Revisar errores» y corregirlo. Solo funciona con el PNG descargado desde esta página, sin editarlo ni convertirlo.</p>
+    <div class="row">
+      <label class="grp"><span class="t">Título del ejercicio (opcional)</span><input type="text" id="tTitle" size="30" placeholder="Ej.: Melodía 1"></label>
+      <label class="chk"><input type="checkbox" id="tLock" checked> Bloquear soprano y ritmo (melodía dada)</label>
+      <label class="chk"><input type="checkbox" id="tChk" checked> Permitir «Revisar errores»</label>
+      <button id="tGen" class="big">Generar código</button>
+    </div>
+    <div class="row"><div class="grp" style="width:100%"><span class="t">Código del ejercicio</span><textarea id="tOut" rows="3" readonly></textarea><div class="b"><button id="tCopy">Copiar código</button><button id="tLink">Copiar enlace</button></div></div></div>
+  </details>
+</div>
+<div id="palette" hidden></div>
+<div id="printArea"></div>
+<script>
+/*VEXFLOW*/
+</script>
+<script>
+/*APP*/
+</script>
+</body>
+</html>
