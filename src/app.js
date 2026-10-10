@@ -962,6 +962,12 @@ function loadCode(str) {
   } catch (e) { msg('El código no es válido. Cópialo completo, tal como lo dejó el docente.'); }
 }
 
+$('bCite').addEventListener('click', function () {
+  var tx = $('citeTxt').textContent.trim();
+  function fb() { var r = document.createRange(); r.selectNodeContents($('citeTxt')); var s = getSelection(); s.removeAllRanges(); s.addRange(r); try { document.execCommand('copy'); msg('Cita copiada.', true); } catch (e) { msg('Selecciona la cita y cópiala con Ctrl+C.'); } }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(tx).then(function () { msg('Cita copiada.', true); }, fb); else fb();
+});
+
 /* ================= inicio ================= */
 buildStaticUI();
 try {
