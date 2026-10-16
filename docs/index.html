@@ -65,13 +65,17 @@ textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px}
 #palette .grid button{padding:4px 0;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600}
 #palette .grid button.sel{background:var(--acc);color:#fff;border-color:var(--acc)}
 #palette .foot{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
+#mapa h4{margin:14px 0 4px;font-size:14px}
+.flowbox{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 8px 6px;margin:6px 0 10px}
+svg.flow{display:block;width:100%;min-width:640px;height:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.flowcap{margin:2px 0 4px;text-align:center;font-size:12.5px;font-style:italic;color:var(--mut)}
 #cite{margin:14px 2px 6px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mut)}
 #cite button{padding:2px 8px;font-size:12px;margin-left:6px}
 #cite .small{margin-top:4px;font-size:11.5px}
 #cite a{color:var(--acc)}
 #printArea{display:none}
 @media print{
-  #app,#palette,#cite{display:none!important}
+  #app,#palette,#cite,#mapa{display:none!important}
   #printArea{display:block}
   #printArea svg{width:100%;height:auto}
   @page{size:letter portrait;margin:10mm}
@@ -151,6 +155,106 @@ textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px}
       <button id="tGen" class="big">Generar código</button>
     </div>
     <div class="row"><div class="grp" style="width:100%"><span class="t">Código del ejercicio</span><textarea id="tOut" rows="3" readonly></textarea><div class="b"><button id="tCopy">Copiar código</button><button id="tLink">Copiar enlace</button></div></div></div>
+  </details>
+  <details class="panel" id="mapa" open>
+    <summary>Mapa de progresiones armónicas</summary>
+    <p>Qué grado suele seguir a cuál. Sirve para elegir los acordes de tu ejercicio y comprobar tus progresiones.</p>
+    <h4>En tonalidad mayor</h4>
+    <div class="flowbox">
+<svg class="flow" viewBox="0 0 900 345" role="img" aria-label="Progresiones armónicas en tonalidad mayor" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="fm-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7380"/></marker>
+<marker id="fm-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2f8f4f"/></marker>
+<marker id="fm-brown" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a5a1c"/></marker>
+<marker id="fm-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2a5db0"/></marker>
+<marker id="fm-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a33a3a"/></marker>
+</defs>
+<path d="M 805,157 C 805,18 96,-6 70,156" fill="none" stroke="#7b8494" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#fm-gray)"/>
+<path d="M 392,87 C 440,48 740,50 788,157" fill="none" stroke="#2f8f4f" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#fm-green)"/>
+<line x1="106" y1="180" x2="152" y2="180" stroke="#6b7380" stroke-width="2" marker-end="url(#fm-gray)"/>
+<line x1="224" y1="168" x2="334" y2="126" stroke="#6b7380" stroke-width="2" marker-end="url(#fm-gray)"/>
+<line x1="224" y1="192" x2="334" y2="234" stroke="#6b7380" stroke-width="2" marker-end="url(#fm-gray)"/>
+<line x1="406" y1="110" x2="552" y2="110" stroke="#2f8f4f" stroke-width="2" marker-end="url(#fm-green)"/>
+<line x1="370" y1="134" x2="370" y2="225" stroke="#2f8f4f" stroke-width="2" marker-end="url(#fm-green)"/>
+<line x1="406" y1="250" x2="550" y2="250" stroke="#2f8f4f" stroke-width="2" marker-end="url(#fm-green)"/>
+<line x1="406" y1="236" x2="558" y2="130" stroke="#6b7380" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#fm-gray)"/>
+<line x1="590" y1="134" x2="590" y2="225" stroke="#8a5a1c" stroke-width="2" marker-end="url(#fm-brown)"/>
+<line x1="626" y1="118" x2="762" y2="165" stroke="#2a5db0" stroke-width="2" marker-end="url(#fm-blue)"/>
+<line x1="630" y1="242" x2="762" y2="196" stroke="#2a5db0" stroke-width="2" marker-end="url(#fm-blue)"/>
+<rect x="35.0" y="158.0" width="70" height="44" rx="9" fill="#f1f2f4" stroke="#cdd2d9" stroke-width="2"/>
+<text x="70" y="188" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#6a7280">iii</text>
+<rect x="155.0" y="158.0" width="70" height="44" rx="9" fill="#f1f2f4" stroke="#cdd2d9" stroke-width="2"/>
+<text x="190" y="188" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#6a7280">vi</text>
+<rect x="335.0" y="88.0" width="70" height="44" rx="9" fill="#e9f5ed" stroke="#3f9460" stroke-width="2"/>
+<text x="370" y="118" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#1d3c2a">IV</text>
+<rect x="335.0" y="228.0" width="70" height="44" rx="9" fill="#e9f5ed" stroke="#3f9460" stroke-width="2"/>
+<text x="370" y="258" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#1d3c2a">ii</text>
+<rect x="555.0" y="88.0" width="70" height="44" rx="9" fill="#fdf0da" stroke="#c8892b" stroke-width="2"/>
+<text x="590" y="118" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#5e3a0b">V</text>
+<rect x="552.0" y="228.0" width="76" height="44" rx="9" fill="#fdf0da" stroke="#c8892b" stroke-width="2"/>
+<text x="590" y="258" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#5e3a0b">vii°</text>
+<rect x="765.0" y="158.0" width="70" height="44" rx="9" fill="#e6eefb" stroke="#2a5db0" stroke-width="2"/>
+<text x="800" y="188" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#1c2430">I</text>
+<text x="450" y="22" text-anchor="middle" font-size="13" font-style="italic" fill="#6b7380" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">el I puede dirigirse a cualquier grado</text>
+<text x="590" y="70" text-anchor="middle" font-size="12" font-style="italic" fill="#2f8f4f" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">cadencia plagal: IV → I</text>
+<text x="130" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">CÍRCULO DE QUINTAS</text>
+<text x="370" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">PREDOMINANTE</text>
+<text x="590" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">DOMINANTE</text>
+<text x="800" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">TÓNICA</text>
+</svg>
+      <p class="flowcap">La línea punteada indica un movimiento posible pero menos frecuente.</p>
+    </div>
+    <h4>En tonalidad menor</h4>
+    <p>La lógica es la misma, pero aparecen más opciones porque el sexto y el séptimo grado son variables. El diagrama recoge los grados de uso más frecuente.</p>
+    <div class="flowbox">
+<svg class="flow" viewBox="0 0 900 372" role="img" aria-label="Progresiones armónicas en tonalidad menor" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<marker id="fn-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6b7380"/></marker>
+<marker id="fn-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2f8f4f"/></marker>
+<marker id="fn-brown" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8a5a1c"/></marker>
+<marker id="fn-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2a5db0"/></marker>
+<marker id="fn-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a33a3a"/></marker>
+</defs>
+<path d="M 662,87 C 662,-14 276,-18 262,156" fill="none" stroke="#a33a3a" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#fn-red)"/>
+<path d="M 456,87 C 500,52 800,54 826,157" fill="none" stroke="#2f8f4f" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#fn-green)"/>
+<path d="M 830,204 C 830,345 90,360 62,205" fill="none" stroke="#7b8494" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#fn-gray)"/>
+<line x1="96" y1="180" x2="126" y2="180" stroke="#6b7380" stroke-width="2" marker-end="url(#fn-gray)"/>
+<line x1="196" y1="180" x2="226" y2="180" stroke="#6b7380" stroke-width="2" marker-end="url(#fn-gray)"/>
+<line x1="294" y1="168" x2="403" y2="126" stroke="#6b7380" stroke-width="2" marker-end="url(#fn-gray)"/>
+<line x1="294" y1="192" x2="403" y2="234" stroke="#6b7380" stroke-width="2" marker-end="url(#fn-gray)"/>
+<line x1="474" y1="110" x2="624" y2="110" stroke="#2f8f4f" stroke-width="2" marker-end="url(#fn-green)"/>
+<line x1="440" y1="134" x2="440" y2="225" stroke="#2f8f4f" stroke-width="2" marker-end="url(#fn-green)"/>
+<line x1="474" y1="250" x2="620" y2="250" stroke="#2f8f4f" stroke-width="2" marker-end="url(#fn-green)"/>
+<line x1="474" y1="236" x2="628" y2="130" stroke="#6b7380" stroke-width="1.6" stroke-dasharray="6 5" marker-end="url(#fn-gray)"/>
+<line x1="660" y1="134" x2="660" y2="225" stroke="#8a5a1c" stroke-width="2" marker-end="url(#fn-brown)"/>
+<line x1="694" y1="118" x2="796" y2="165" stroke="#2a5db0" stroke-width="2" marker-end="url(#fn-blue)"/>
+<line x1="700" y1="242" x2="796" y2="196" stroke="#2a5db0" stroke-width="2" marker-end="url(#fn-blue)"/>
+<rect x="29.0" y="158.0" width="66" height="44" rx="9" fill="#f1f2f4" stroke="#cdd2d9" stroke-width="2"/>
+<text x="62" y="188" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#6a7280">VII</text>
+<rect x="129.0" y="158.0" width="66" height="44" rx="9" fill="#f1f2f4" stroke="#cdd2d9" stroke-width="2"/>
+<text x="162" y="188" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#6a7280">III</text>
+<rect x="229.0" y="158.0" width="66" height="44" rx="9" fill="#f1f2f4" stroke="#cdd2d9" stroke-width="2"/>
+<text x="262" y="188" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#6a7280">VI</text>
+<rect x="407.0" y="88.0" width="66" height="44" rx="9" fill="#e9f5ed" stroke="#3f9460" stroke-width="2"/>
+<text x="440" y="118" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#1d3c2a">iv</text>
+<rect x="407.0" y="228.0" width="66" height="44" rx="9" fill="#e9f5ed" stroke="#3f9460" stroke-width="2"/>
+<text x="440" y="258" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#1d3c2a">ii°</text>
+<rect x="627.0" y="88.0" width="66" height="44" rx="9" fill="#fdf0da" stroke="#c8892b" stroke-width="2"/>
+<text x="660" y="118" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#5e3a0b">V</text>
+<rect x="622.0" y="228.0" width="76" height="44" rx="9" fill="#fdf0da" stroke="#c8892b" stroke-width="2"/>
+<text x="660" y="258" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#5e3a0b">vii°</text>
+<rect x="797.0" y="158.0" width="66" height="44" rx="9" fill="#e6eefb" stroke="#2a5db0" stroke-width="2"/>
+<text x="830" y="188" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="23" fill="#1c2430">i</text>
+<text x="450" y="13" text-anchor="middle" font-size="13" font-style="italic" fill="#a33a3a" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">cadencia rota: V → VI</text>
+<text x="650" y="66" text-anchor="middle" font-size="12" font-style="italic" fill="#2f8f4f" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">cadencia plagal: iv → i</text>
+<text x="450" y="358" text-anchor="middle" font-size="13" font-style="italic" fill="#6b7380" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">el i puede dirigirse a cualquier grado</text>
+<text x="162" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">CÍRCULO DE QUINTAS</text>
+<text x="440" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">PREDOMINANTE</text>
+<text x="660" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">DOMINANTE</text>
+<text x="830" y="300" text-anchor="middle" font-size="13" font-weight="700" fill="#5b6472" letter-spacing=".02em" paint-order="stroke" stroke="#fff" stroke-width="6" stroke-linejoin="round">TÓNICA</text>
+</svg>
+      <p class="flowcap">La línea punteada indica un movimiento posible pero menos frecuente.</p>
+    </div>
   </details>
   <footer id="cite">
     <b>Cómo citar:</b> <span id="citeTxt">Chávez Becerra, A. (2026). <i>Armonikus: escritura a cuatro voces (SATB)</i> [Aplicación web]. https://archavezuq.github.io/armonikus/</span>

@@ -58,13 +58,17 @@ textarea{width:100%;font-family:ui-monospace,Consolas,monospace;font-size:12px}
 #palette .grid button{padding:4px 0;font-family:system-ui,Arial,sans-serif;font-size:13px;font-weight:600}
 #palette .grid button.sel{background:var(--acc);color:#fff;border-color:var(--acc)}
 #palette .foot{display:flex;justify-content:space-between;margin-top:8px;gap:8px}
+#mapa h4{margin:14px 0 4px;font-size:14px}
+.flowbox{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff;padding:10px 8px 6px;margin:6px 0 10px}
+svg.flow{display:block;width:100%;min-width:640px;height:auto;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+.flowcap{margin:2px 0 4px;text-align:center;font-size:12.5px;font-style:italic;color:var(--mut)}
 #cite{margin:14px 2px 6px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mut)}
 #cite button{padding:2px 8px;font-size:12px;margin-left:6px}
 #cite .small{margin-top:4px;font-size:11.5px}
 #cite a{color:var(--acc)}
 #printArea{display:none}
 @media print{
-  #app,#palette,#cite{display:none!important}
+  #app,#palette,#cite,#mapa{display:none!important}
   #printArea{display:block}
   #printArea svg{width:100%;height:auto}
   @page{size:letter portrait;margin:10mm}

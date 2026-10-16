@@ -9,6 +9,7 @@ Es un solo archivo HTML autocontenido: `dist/Editor_Escritura_4_Voces.html`. La 
 ## Qué hace
 
 - Gran pentagrama con 30 armaduras (mayores y menores) y compases 4/4, 3/4, 2/4, 2/2 y 6/8.
+- Mapa de progresiones armónicas (mayor y menor, con cadencia plagal y rota) al final de la página.
 - Ritmo independiente por voz (p. ej., blanca en la soprano sobre negras en las demás).
 - Anacrusa (antecompás) opcional al inicio, de corchea a blanca con puntillo.
 - Escritura por clic en cada voz (S, A, T, B), con figuras de redonda a corchea, puntillos, silencios y alteraciones (♭ ♮ ♯).
