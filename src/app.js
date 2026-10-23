@@ -33,9 +33,11 @@ var DUR = {
   h: { b: 2, vf: 'h', dots: 0, name: 'Blanca' },
   qd: { b: 1.5, vf: 'q', dots: 1, name: 'Negra con puntillo' },
   q: { b: 1, vf: 'q', dots: 0, name: 'Negra' },
-  e: { b: 0.5, vf: '8', dots: 0, name: 'Corchea' }
+  ed: { b: 0.75, vf: '8', dots: 1, name: 'Corchea con puntillo' },
+  e: { b: 0.5, vf: '8', dots: 0, name: 'Corchea' },
+  s: { b: 0.25, vf: '16', dots: 0, name: 'Semicorchea' }
 };
-var DUR_ORDER = ['w', 'hd', 'h', 'qd', 'q', 'e'];
+var DUR_ORDER = ['w', 'hd', 'h', 'qd', 'q', 'ed', 'e', 's'];
 var VOICES = [
   { k: 'S', n: 'Soprano', c: '#1f6fd6', clef: 'treble', dir: 1, lo: 60, hi: 81 },
   { k: 'A', n: 'Alto', c: '#168a4f', clef: 'treble', dir: -1, lo: 53, hi: 74 },
@@ -147,7 +149,7 @@ function normalize() {
   if (S.measures < u) S.measures = u;
   if (S.measures < 1) S.measures = 1;
 }
-var PICKS = [[0.5, 'Corchea'], [1, 'Negra'], [1.5, 'Negra con puntillo'], [2, 'Blanca'], [3, 'Blanca con puntillo']];
+var PICKS = [[0.25, 'Semicorchea'], [0.5, 'Corchea'], [0.75, 'Corchea con puntillo'], [1, 'Negra'], [1.5, 'Negra con puntillo'], [2, 'Blanca'], [3, 'Blanca con puntillo']];
 function fillPick() {
   var sel = $('sPick'), b = TIMES[S.time].b, h = '<option value="0">Sin anacrusa</option>';
   PICKS.forEach(function (p) { if (p[0] < b) h += '<option value="' + p[0] + '">' + p[1] + '</option>'; });
@@ -173,7 +175,7 @@ function makeBeams(idxs, notes, kinds, o, vi, bs) {
   });
   return out;
 }
-var PADS = [[4, 'w'], [3, 'hd'], [2, 'h'], [1.5, 'qd'], [1, 'q'], [0.5, '8']];
+var PADS = [[4, 'w'], [3, 'hd'], [2, 'h'], [1.5, 'qd'], [1, 'q'], [0.75, '8d'], [0.5, '8'], [0.25, '16']];
 function padsFor(idxs, mlen) {
   var acc = 0, out = [];
   idxs.forEach(function (i) { acc += DUR[S.cols[i].d].b; });
@@ -198,7 +200,7 @@ function mkVoices(idxs, vis, clef, o, alts, pads) {
       } else {
         n = new VF.StaveNote({ keys: [vfKey(e, alts)], duration: dstr, clef: clef, stem_direction: VOICES[vi].dir });
         if (d.dots) n.addModifier(new VF.Dot(), 0);
-        styleNote(n, o, vi); kinds.push(key === 'e');
+        styleNote(n, o, vi); kinds.push(key === 'e' || key === 'ed' || key === 's');
       }
       arr.push(n); bs.push(d.b);
     });
@@ -444,7 +446,7 @@ function writeNote(ci, vi, nv, D) {
   var acc = cb, j = ci + 1;
   while (acc < Db - EPS && j < S.cols.length && !S.cols[j].v[vi]) { acc += DUR[S.cols[j].d].b; j++; }
   if (acc < Db - EPS && j >= S.cols.length) {
-    var rem = Db - acc, PK = ['w', 'hd', 'h', 'qd', 'q', 'e'];
+    var rem = Db - acc, PK = ['w', 'hd', 'h', 'qd', 'q', 'ed', 'e', 's'];
     for (k = 0; k < PK.length && rem > EPS; k++) while (rem + EPS >= DUR[PK[k]].b) { S.cols.push({ d: PK[k], v: [null, null, null, null], rn: null, cs: null }); rem -= DUR[PK[k]].b; }
     if (!partition(S.cols, TIMES[S.time].b).ok || usedMeasures(partition(S.cols, TIMES[S.time].b)) > S.measures) return 'No cabe: se pasaría del compás o del número de compases.';
   }
@@ -565,14 +567,14 @@ function recognizePen(strokes) {
   var nFlag = 0;
   if (stem) {
     var up = stem.b.cy < hb.cy, endY = up ? stem.b.y0 : stem.b.y1;
-    nFlag = flags.filter(function (f) { return Math.abs((up ? f.b.y0 : f.b.y1) - endY) < 1.6 * S && f.b.cx > stem.b.cx - 1.2 * S && f.b.cx < stem.b.cx + 2.6 * S; }).length;
+    nFlag = flags.filter(function (f) { return Math.abs((up ? f.b.y0 : f.b.y1) - endY) < 2.9 * S && f.b.cx > stem.b.cx - 1.2 * S && f.b.cx < stem.b.cx + 2.6 * S; }).length;
   }
   var dot = dots.some(function (p) { return p.b.cx > hb.x1 - 0.3 * S && p.b.cx < hb.x1 + 3 * S && Math.abs(p.b.cy - hb.cy) < 1.3 * S; });
   var dur;
   if (!h.filled) dur = stem ? (dot ? 'hd' : 'h') : 'w';
-  else dur = stem ? (nFlag >= 1 ? 'e' : (dot ? 'qd' : 'q')) : (dot ? 'qd' : 'q');
+  else dur = stem ? (nFlag >= 2 ? 's' : nFlag === 1 ? (dot ? 'ed' : 'e') : (dot ? 'qd' : 'q')) : (dot ? 'qd' : 'q');
   var note = '';
-  if (dur === 'e' && dot) note = ' (la corchea con puntillo no está disponible)';
+  if (dur === 's' && dot) note = ' (la semicorchea con puntillo no está disponible)';
   if (!h.filled && !stem && dot) note = ' (la redonda con puntillo no está disponible)';
   return { dur: dur, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem };
 }
@@ -736,11 +738,12 @@ document.addEventListener('mousedown', function (e) { if (!pal.hidden && !pal.co
 
 /* ================= interfaz ================= */
 function durIcon(code) {
-  var d = DUR[code], filled = (d.vf === 'q' || d.vf === '8'), stem = d.vf !== 'w', flag = d.vf === '8';
+  var d = DUR[code], filled = (d.vf === 'q' || d.vf === '8' || d.vf === '16'), stem = d.vf !== 'w', flag = d.vf === '8' || d.vf === '16';
   var s = '<svg width="26" height="32" viewBox="0 0 26 32">';
   s += '<ellipse cx="10" cy="25" rx="6.2" ry="4.4" transform="rotate(-20 10 25)" fill="' + (filled ? '#111' : '#fff') + '" stroke="#111" stroke-width="1.6"/>';
   if (stem) s += '<line x1="15.6" y1="23.5" x2="15.6" y2="4" stroke="#111" stroke-width="1.5"/>';
   if (flag) s += '<path d="M15.6 4 C 20 8, 24 12, 20 19" fill="none" stroke="#111" stroke-width="1.6"/>';
+  if (d.vf === '16') s += '<path d="M15.6 9.5 C 20 13.5, 24 17.5, 20 24" fill="none" stroke="#111" stroke-width="1.6"/>';
   if (d.dots) s += '<circle cx="21" cy="25" r="1.7" fill="#111"/>';
   return s + '</svg>';
 }
@@ -1114,7 +1117,7 @@ function copyText(t, ok) {
 /* ================= código de ejercicio (modo docente) ================= */
 function b64u(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
-var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', e: 'e' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
+var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', ed: 'E', e: 'e', s: 's' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
 function packCode(o) {
   var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '0' ? '' : a); }); return DCH[r[0]] + p; }).join('');
   return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes;
@@ -1123,7 +1126,7 @@ function unpackCode(str) {
   var p = str.split('.'); if (p[0] !== 'A1' || p.length !== 6) throw 0;
   var key = p[1].replace('s', '#'), tm = p[2].replace(/^(\d)(\d)$/, '$1/$2'), g = p[3].split('-');
   var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], pk: (+g[3] || 0) / 2, s: [] };
-  var re = /([wHhQqe])(r|([a-g])(\d)([-+]?))/g, m, used = 0;
+  var re = /([wHhQqEes])(r|([a-g])(\d)([-+]?))/g, m, used = 0;
   while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : 0)]); }
   if (used !== p[5].length) throw 0;
   return o;

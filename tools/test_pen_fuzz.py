@@ -30,11 +30,15 @@ def gen(kind):
     hollow = kind in ('w','h','hd')
     st.append(J(ell(cx,cy,rx,ry,tilt,random.uniform(.9,1.2)) if hollow else fillh(cx,cy,rx,ry,random.randint(4,9),tilt),.7))
     if kind!='w': st.append(J(line(sx,sy0,sx+L*math.sin(sl)*(1 if up else -1),sy1),.6))
-    if kind=='e':
+    if kind in ('e','ed','s'):
         ex=sx; ey=sy1; d=random.choice([1,1.2,1.5])
         fl=[(ex+i*2*d, ey+(1 if up else -1)*(i**1.6)*0.65*d) for i in range(7)]
         st.append(J(fl,.5))
-    if kind in('hd','qd'):
+        if kind=='s':
+            off=random.uniform(5,9)*(1 if up else -1)*-1*-1
+            fl2=[(ex+i*2*d, ey+(1 if up else -1)*(off*(1 if up else -1)*(1 if up else -1)) *0 + (1 if up else -1)*((i**1.6)*0.65*d+abs(off))) for i in range(7)]
+            st.append(J(fl2,.5))
+    if kind in('hd','qd','ed'):
         st.append(J([(cx+rx+random.uniform(6,12), cy+random.uniform(-3,3))]*2,.1))
     return st,exp
 import sys
@@ -42,7 +46,7 @@ JIT=float(sys.argv[1]) if len(sys.argv)>1 else 1.0
 with sync_playwright() as p:
     b=p.chromium.launch(); pg=b.new_page(); pg.goto('file:///home/claude/armonikus/dist/Editor_Escritura_4_Voces.html')
     tot={}; ok={}; conf={}
-    for kind in ['w','h','hd','q','qd','e']:
+    for kind in ['w','h','hd','q','qd','e','ed','s']:
         for _ in range(150):
             st,exp=gen(kind)
             r=pg.evaluate("s=>{const r=window.__lm3.recognizePen(s);return r.err?('ERR'):r.dur}",st)
