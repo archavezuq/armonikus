@@ -66,6 +66,7 @@ svg.flow{display:block;width:100%;min-width:640px;height:auto;font-family:system
 #cite button{padding:2px 8px;font-size:12px;margin-left:6px}
 #cite .small{margin-top:4px;font-size:11.5px}
 #cite a{color:var(--acc)}
+body.pen-on #stage{touch-action:none;cursor:crosshair}
 #printArea{display:none}
 @media print{
   #app,#palette,#cite,#mapa{display:none!important}

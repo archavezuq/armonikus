@@ -73,6 +73,7 @@ svg.flow{display:block;width:100%;min-width:640px;height:auto;font-family:system
 #cite button{padding:2px 8px;font-size:12px;margin-left:6px}
 #cite .small{margin-top:4px;font-size:11.5px}
 #cite a{color:var(--acc)}
+body.pen-on #stage{touch-action:none;cursor:crosshair}
 #printArea{display:none}
 @media print{
   #app,#palette,#cite,#mapa{display:none!important}
@@ -93,6 +94,7 @@ svg.flow{display:block;width:100%;min-width:640px;height:auto;font-family:system
     <ol>
       <li>Si el docente dejó un <b>código de ejercicio</b>, pégalo en «Cargar ejercicio» y pulsa <i>Cargar</i>. Si no, elige tonalidad, compás y número de compases.</li>
       <li>Elige la <b>voz</b> (S, A, T, B) y la <b>figura</b>. Haz clic en el pentagrama a la altura de la nota. El primer clic en el compás sombreado crea un acorde nuevo; en los siguientes, haz clic sobre el acorde que quieras completar.</li>
+      <li><b>Escribir a mano (iPad / tableta):</b> elige «Lápiz ✎», escoge la voz y dibuja la nota en el compás sombreado o sobre un acorde: la <b>cabeza</b> (óvalo vacío para blanca o redonda, relleno para negra o corchea), la <b>plica</b> (raya vertical), el <b>corchete</b> (una curva corta al final de la plica, para la corchea) y un <b>punto</b> a la derecha (puntillo). Espera un instante y la app la escribe. Un toque suelto funciona como un clic. Si se equivoca, pulsa «Deshacer».</li>
       <li><b>Ritmo distinto en cada voz:</b> activa «Ritmo propio por voz», elige la figura y haz clic en la voz. Una figura más corta que la del acorde lo divide; una más larga (por ejemplo, blanca sobre dos negras) ocupa los acordes siguientes, que deben estar vacíos en esa voz.</li>
       <li>Para una nota fuera de la armadura, elige antes ♭, ♮ o ♯. Para borrar, vuelve a hacer clic sobre la misma nota o usa clic derecho.</li>
       <li>Debajo de cada acorde pon el <b>grado</b> (cifrado romano) y encima el <b>cifrado americano</b>: haz clic en los recuadros.</li>
@@ -122,7 +124,7 @@ svg.flow{display:block;width:100%;min-width:640px;height:auto;font-family:system
       <div class="grp"><span class="t">Voz</span><div class="b" id="bVoice"></div></div>
       <div class="grp"><span class="t">Figura</span><div class="b" id="bDur"></div><label class="chk" title="Si está activado, la figura elegida vale solo para la voz que escribes y puede ser distinta a la de las otras voces"><input type="checkbox" id="cOwn"> Ritmo propio por voz</label></div>
       <div class="grp"><span class="t">Silencio / alteración</span><div class="b"><button id="bRest" title="Escribir silencio">Silencio</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button></div></div>
-      <div class="grp"><span class="t">Herramienta</span><div class="b" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button></div></div>
+      <div class="grp"><span class="t">Herramienta</span><div class="b" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button><button data-mode="pen" title="Dibuja la nota a mano con lápiz o dedo: cabeza, plica, corchete y puntillo">Lápiz ✎</button></div></div>
     </div>
     <div class="row">
       <div class="grp"><span class="t">Edición</span><div class="b"><button id="bUndo">Deshacer</button><button id="bRedo">Rehacer</button></div></div>
@@ -778,6 +780,128 @@ function onClick(p, right) {
   }
 }
 
+/* ================= lápiz (dibujar la nota a mano) ================= */
+var PEN = { strokes: [], cur: null, timer: null, sawPen: false, S: 10, hinted: false };
+function pbox(pts) {
+  var x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  pts.forEach(function (p) { if (p.x < x0) x0 = p.x; if (p.x > x1) x1 = p.x; if (p.y < y0) y0 = p.y; if (p.y > y1) y1 = p.y; });
+  return { x0: x0, y0: y0, x1: x1, y1: y1, w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+}
+function plen(pts) { var L = 0; for (var i = 1; i < pts.length; i++) L += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); return L; }
+function penClear() { clearTimeout(PEN.timer); PEN.strokes = []; PEN.cur = null; var g = $('ov') && $('ov').querySelector('#ink'); if (g) g.innerHTML = ''; }
+function drawInk() {
+  var ov = $('ov'), g = ov.querySelector('#ink') || svgEl('g', { id: 'ink' }, ov); g.innerHTML = '';
+  var col = VOICES[ui.voice].c, all = PEN.strokes.concat(PEN.cur ? [PEN.cur.pts] : []);
+  all.forEach(function (pts) {
+    svgEl('polyline', { points: pts.map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' '), fill: 'none', stroke: col, 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+  });
+}
+function reversals(pts) {
+  var q = [pts[0]], i, n = 0;
+  for (i = 1; i < pts.length; i++) { var l = q[q.length - 1]; if (Math.hypot(pts[i].x - l.x, pts[i].y - l.y) >= 2.5) q.push(pts[i]); }
+  for (i = 1; i < q.length - 1; i++) {
+    var ax = q[i].x - q[i - 1].x, ay = q[i].y - q[i - 1].y, bx = q[i + 1].x - q[i].x, by = q[i + 1].y - q[i].y;
+    var c = (ax * bx + ay * by) / (Math.hypot(ax, ay) * Math.hypot(bx, by) || 1);
+    if (c < 0.2) n++;
+  }
+  return n;
+}
+function centerInk(pts, b) {
+  var rc = 0.2 * Math.min(b.w, b.h) + 0.5;
+  for (var i = 1; i < pts.length; i++) {
+    var x0 = pts[i - 1].x, y0 = pts[i - 1].y, x1 = pts[i].x, y1 = pts[i].y, n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+    for (var k = 0; k <= n; k++) if (Math.hypot(x0 + (x1 - x0) * k / n - b.cx, y0 + (y1 - y0) * k / n - b.cy) <= rc) return true;
+  }
+  return false;
+}
+function thin(pts) {
+  var q = [pts[0]];
+  for (var i = 1; i < pts.length; i++) { var l = q[q.length - 1]; if (Math.hypot(pts[i].x - l.x, pts[i].y - l.y) >= 2.5) q.push(pts[i]); }
+  var z = pts[pts.length - 1], l2 = q[q.length - 1]; if (l2 !== z) q.push(z);
+  return q;
+}
+function classifyStroke(pts) {
+  pts = thin(pts);
+  var S = PEN.S, b = pbox(pts), L = plen(pts), a = pts[0], z = pts[pts.length - 1], d = Math.hypot(a.x - z.x, a.y - z.y);
+  var md = Math.max(b.w, b.h), diag = Math.hypot(b.w, b.h);
+  if (md < 0.7 * S) return { k: 'dot', b: b };
+  if (b.h >= 2 * S && b.w <= 0.5 * b.h && L > 0 && d / L > 0.72) return { k: 'stem', b: b };
+  if (md <= 2.8 * S && md >= 0.6 * S && b.h > 0 && b.w / b.h >= 0.45 && b.w / b.h <= 3.2) {
+    var r = L / (Math.PI * (b.w + b.h) / 2), scrib = r > 2.2 || reversals(pts) >= 3, closed = d <= 0.55 * diag;
+    if (scrib || closed) return { k: 'head', b: b, filled: scrib || centerInk(pts, b) };
+  }
+  if (b.w >= 0.35 * S || b.h >= 0.5 * S) return { k: 'flag', b: b };
+  return { k: '?', b: b };
+}
+function recognizePen(strokes) {
+  var S = PEN.S, cl = strokes.map(classifyStroke);
+  var heads = cl.filter(function (c) { return c.k === 'head'; }), stems = cl.filter(function (c) { return c.k === 'stem'; });
+  var flags = cl.filter(function (c) { return c.k === 'flag'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
+  if (heads.length !== 1) return { err: heads.length ? 'Dibuja una sola nota a la vez.' : 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno (negra, corchea).' };
+  var h = heads[0], hb = h.b;
+  var stem = stems.filter(function (s) { return s.b.cx > hb.x0 - 0.9 * S && s.b.cx < hb.x1 + 0.9 * S && s.b.y0 < hb.y1 + 0.7 * S && s.b.y1 > hb.y0 - 0.7 * S; })[0] || null;
+  var nFlag = 0;
+  if (stem) {
+    var up = stem.b.cy < hb.cy, endY = up ? stem.b.y0 : stem.b.y1;
+    nFlag = flags.filter(function (f) { return Math.abs((up ? f.b.y0 : f.b.y1) - endY) < 1.6 * S && f.b.cx > stem.b.cx - 1.2 * S && f.b.cx < stem.b.cx + 2.6 * S; }).length;
+  }
+  var dot = dots.some(function (p) { return p.b.cx > hb.x1 - 0.3 * S && p.b.cx < hb.x1 + 3 * S && Math.abs(p.b.cy - hb.cy) < 1.3 * S; });
+  var dur;
+  if (!h.filled) dur = stem ? (dot ? 'hd' : 'h') : 'w';
+  else dur = stem ? (nFlag >= 1 ? 'e' : (dot ? 'qd' : 'q')) : (dot ? 'qd' : 'q');
+  var note = '';
+  if (dur === 'e' && dot) note = ' (la corchea con puntillo no está disponible)';
+  if (!h.filled && !stem && dot) note = ' (la redonda con puntillo no está disponible)';
+  return { dur: dur, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem };
+}
+function penFinish() {
+  clearTimeout(PEN.timer);
+  var strokes = PEN.strokes; PEN.strokes = []; var g = $('ov').querySelector('#ink'); if (g) g.innerHTML = '';
+  if (!strokes.length) return;
+  var r = recognizePen(strokes);
+  if (r.err) { msg(r.err); return; }
+  ui.dur = r.dur; ui.rest = false; syncUI();
+  var m = ui.mode; ui.mode = 'write'; onClick({ x: r.cx, y: r.cy }, false); ui.mode = m; syncUI();
+  if (!$('msg').textContent) msg('Reconocí: ' + DUR[r.dur].name.toLowerCase() + r.note + '. Si no es lo que querías, pulsa «Deshacer» y vuelve a dibujarla.', true);
+}
+function initPen() {
+  var stage = $('stage');
+  stage.addEventListener('pointerdown', function (e) {
+    if (ui.mode !== 'pen' || e.target.closest('.slot')) return;
+    if (e.pointerType === 'pen') PEN.sawPen = true;
+    if (e.pointerType === 'touch' && PEN.sawPen) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    var p = stagePos(e);
+    if (PEN.strokes.length) {
+      var gb = pbox([].concat.apply([], PEN.strokes));
+      if (p.x > gb.x1 + 3 * PEN.S || p.x < gb.x0 - 3 * PEN.S || Math.abs(p.y - gb.cy) > 9 * PEN.S) penFinish();
+    }
+    clearTimeout(PEN.timer);
+    PEN.cur = { pts: [p], t0: Date.now(), id: e.pointerId };
+    try { stage.setPointerCapture(e.pointerId); } catch (x) { }
+    drawInk();
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!PEN.cur || e.pointerId !== PEN.cur.id) return;
+    var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
+    evs.forEach(function (ev) { PEN.cur.pts.push(stagePos(ev)); });
+    drawInk();
+  });
+  function up(e) {
+    if (!PEN.cur || e.pointerId !== PEN.cur.id) return;
+    var st = PEN.cur; PEN.cur = null;
+    var b = pbox(st.pts);
+    if (Math.max(b.w, b.h) < 0.7 * PEN.S && !PEN.strokes.length && Date.now() - st.t0 < 350) {
+      var g = $('ov').querySelector('#ink'); if (g) g.innerHTML = '';
+      var m = ui.mode; ui.mode = 'write'; onClick(st.pts[0], false); ui.mode = m; syncUI(); return;
+    }
+    PEN.strokes.push(st.pts); drawInk();
+    clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 650);
+  }
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+}
+
 /* ================= paletas ================= */
 var pal = $('palette');
 function closePalette() { pal.hidden = true; pal.innerHTML = ''; }
@@ -962,8 +1086,9 @@ function buildStaticUI() {
   var stage = $('stage');
   stage.addEventListener('mousemove', function (e) { updatePreview(stagePos(e)); });
   stage.addEventListener('mouseleave', function () { var g = $('pv'); if (g) g.innerHTML = ''; });
-  stage.addEventListener('click', function (e) { if (e.target.closest('.slot')) return; onClick(stagePos(e), false); });
-  stage.addEventListener('contextmenu', function (e) { if (e.target.closest('.slot')) return; e.preventDefault(); onClick(stagePos(e), true); });
+  stage.addEventListener('click', function (e) { if (e.target.closest('.slot') || ui.mode === 'pen') return; onClick(stagePos(e), false); });
+  stage.addEventListener('contextmenu', function (e) { if (e.target.closest('.slot')) return; e.preventDefault(); if (ui.mode !== 'pen') onClick(stagePos(e), true); });
+  initPen();
   document.addEventListener('keydown', function (e) {
     var t = e.target && e.target.tagName; if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return;
     if (e.key >= '1' && e.key <= '4') { ui.voice = parseInt(e.key, 10) - 1; syncUI(); }
@@ -981,6 +1106,8 @@ function syncUI() {
   $('bRest').classList.toggle('on', ui.rest);
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
+  document.body.classList.toggle('pen-on', ui.mode === 'pen');
+  if (ui.mode !== 'pen' && typeof penClear === 'function') penClear();
   var lk = !!S.lock;
   ['sKey', 'sTime', 'nMeas', 'sPick'].forEach(function (id) { $(id).disabled = lk; });
   $('bCheck').style.display = S.chk ? '' : 'none';
@@ -1322,7 +1449,7 @@ try {
 } catch (e) { }
 refresh();
 if (location.hash.indexOf('#ej=') === 0) loadCode(location.hash);
-window.__lm3 = { SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks };
+window.__lm3 = { penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks };
 })();
 
 </script>
