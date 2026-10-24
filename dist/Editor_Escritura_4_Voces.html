@@ -802,7 +802,8 @@ function drawInk() {
   var ov = $('ov'), g = ov.querySelector('#ink') || svgEl('g', { id: 'ink' }, ov); g.innerHTML = '';
   var col = VOICES[ui.voice].c, all = PEN.strokes.concat(PEN.cur ? [PEN.cur.pts] : []);
   all.forEach(function (pts) {
-    svgEl('polyline', { points: pts.map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' '), fill: 'none', stroke: col, 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+    var pl = svgEl('polyline', { points: pts.map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' '), fill: 'none', stroke: col, 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, g);
+    if (PEN.cur && pts === PEN.cur.pts) PEN.cur.pl = pl;
   });
 }
 function reversals(pts) {
@@ -877,7 +878,6 @@ function initPen() {
   var stage = $('stage'), touches = {};
   function contact(e) {
     if (e.pointerType === 'mouse') return !!(e.buttons & 1);
-    if (e.pointerType === 'pen') return !!(e.buttons & 1) || e.pressure > 0;
     return true;
   }
   function abort() { if (PEN.cur) { try { stage.releasePointerCapture(PEN.cur.id); } catch (x) { } } PEN.cur = null; drawInk(); }
@@ -905,7 +905,7 @@ function initPen() {
     if (!contact(e)) { up(e); return; }
     var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
     evs.forEach(function (ev) { PEN.cur.pts.push(stagePos(ev)); });
-    drawInk();
+    var pl = PEN.cur.pl; if (pl) pl.setAttribute('points', PEN.cur.pts.map(function (p) { return p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ')); else drawInk();
   });
   function up(e) {
     delete touches[e.pointerId];
@@ -1480,7 +1480,7 @@ $('bCite').addEventListener('click', function () {
 /* ================= inicio ================= */
 buildStaticUI();
 (function board() {
-  var cv = $('bdCv'), cx = cv.getContext('2d'), tool = 'pen', drawing = null, KEY = 'lm3_board_v1';
+  var cv = $('bdCv'), cx = cv.getContext('2d', { desynchronized: true }), tool = 'pen', drawing = null, KEY = 'lm3_board_v1';
   function size() { var w = cv.clientWidth, h = cv.clientHeight, old = null; try { old = cv.toDataURL(); } catch (e) { }
     var r = window.devicePixelRatio || 1; cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
@@ -1498,9 +1498,12 @@ buildStaticUI();
   });
   cv.addEventListener('pointermove', function (e) {
     if (!drawing || e.pointerId !== drawing.id) return;
-    if (e.pointerType !== 'touch' && !(e.buttons & 1) && !(e.pressure > 0)) { drawing = null; save(); return; }
+    if (e.pointerType === 'mouse' && !(e.buttons & 1)) { drawing = null; save(); return; }
     var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
-    evs.forEach(function (ev) { var q = pos(ev); seg(drawing.p, q, 2.4); drawing.p = q; });
+    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value; cx.lineWidth = tool === 'eraser' ? 18 : 2.4;
+    cx.beginPath(); cx.moveTo(drawing.p.x, drawing.p.y);
+    evs.forEach(function (ev) { var q = pos(ev); cx.lineTo(q.x, q.y); drawing.p = q; });
+    cx.stroke();
   });
   function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('lostpointercapture', end);
