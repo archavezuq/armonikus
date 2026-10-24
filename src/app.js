@@ -1197,7 +1197,7 @@ buildStaticUI();
 (function board() {
   var cv = $('bdCv'), cx = cv.getContext('2d'), tool = 'pen', drawing = null, KEY = 'lm3_board_v1';
   function size() { var w = cv.clientWidth, h = cv.clientHeight, old = null; if (drawing || (w === cw && cv.width)) return; cw = w; try { old = cv.toDataURL(); } catch (e) { }
-    var r = window.devicePixelRatio || 1; cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
+    var r = Math.min(2, window.devicePixelRatio || 1); cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
   function W0() { return parseFloat($('bdW').value) || 2.4; }
   var svT = null, cw = 0;
@@ -1213,7 +1213,7 @@ buildStaticUI();
     e.preventDefault(); drawing = { id: e.pointerId, p: pos(e) }; try { cv.setPointerCapture(e.pointerId); } catch (x) { }
     seg(drawing.p, { x: drawing.p.x + 0.01, y: drawing.p.y }, W0());
   });
-  cv.addEventListener('pointermove', function (e) {
+  var mv = function (e) {
     if (!drawing || e.pointerId !== drawing.id) return;
     if (e.pointerType === 'mouse' && !(e.buttons & 1)) { drawing = null; save(); return; }
     var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
@@ -1221,7 +1221,9 @@ buildStaticUI();
     cx.beginPath(); cx.moveTo(drawing.p.x, drawing.p.y);
     evs.forEach(function (ev) { var q = pos(ev); cx.lineTo(q.x, q.y); drawing.p = q; });
     cx.stroke();
-  });
+  };
+  cv.addEventListener('pointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove', mv);
+  cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('lostpointercapture', end);
   $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
