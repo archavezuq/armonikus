@@ -628,9 +628,10 @@ function penFinish() {
   }
   if (r.err) { msg(r.err); return; }
   ui.dur = r.dur; ui.rest = false; syncUI();
-  var m = ui.mode; ui.mode = 'write'; onClick({ x: r.cx, y: r.cy }, false); ui.mode = m; syncUI();
-  if (!$('msg').textContent) {
-    PEN.last = { strokes: strokes, t: Date.now(), snap: JSON.stringify(S) };
+  var m = ui.mode, before = JSON.stringify(S); ui.mode = 'write'; onClick({ x: r.cx, y: r.cy }, false); ui.mode = m; syncUI();
+  var after = JSON.stringify(S), prev = $('msg').textContent;
+  if (after !== before) { PEN.last = { strokes: strokes, t: Date.now(), snap: after }; PEN.lastMsg = prev; }
+  if (!prev) {
     msg('Reconocí: ' + DUR[r.dur].name.toLowerCase() + r.note + ' (' + r.info + '). Si falta el corchete o el puntillo, dibújalo ahora junto a la nota; si no, «Deshacer».', true);
   }
 }
