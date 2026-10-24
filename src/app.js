@@ -582,9 +582,15 @@ function recognizePen(strokes) {
   strokes.forEach(function (st) { var sp = splitStemFlag(st); if (sp) { ex.push(sp[0]); ex.push(sp[1]); } else ex.push(st); });
   strokes = ex;
   var S = PEN.S, cl = strokes.map(classifyStroke);
+  var sum = cl.map(function (c) { return c.k + ' ' + (Math.round(c.b.w / S * 10) / 10) + '×' + (Math.round(c.b.h / S * 10) / 10); }).join(', ');
+  var hs0 = cl.filter(function (c) { return c.k === 'head'; });
+  if (hs0.length > 1) {
+    var big = hs0.slice().sort(function (a, b2) { return (b2.b.w * b2.b.h) - (a.b.w * a.b.h); })[0];
+    cl.forEach(function (c) { if (c.k === 'head' && c !== big) c.k = 'flag'; });
+  }
   var heads = cl.filter(function (c) { return c.k === 'head'; }), stems = cl.filter(function (c) { return c.k === 'stem'; });
   var flags = cl.filter(function (c) { return c.k === 'flag'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
-  if (heads.length !== 1) return { noHead: !heads.length, err: heads.length ? 'Dibuja una sola nota a la vez.' : 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno (negra, corchea).' };
+  if (heads.length !== 1) return { noHead: !heads.length, err: 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno (negra, corchea). [Vi: ' + sum + ']' };
   var h = heads[0], hb = h.b;
   var stem = stems.filter(function (s) { return s.b.cx > hb.x0 - 0.9 * S && s.b.cx < hb.x1 + 0.9 * S && s.b.y0 < hb.y1 + 0.7 * S && s.b.y1 > hb.y0 - 0.7 * S; })[0] || null;
   var nFlag = 0;
@@ -599,7 +605,7 @@ function recognizePen(strokes) {
   var note = '';
   if (dur === 's' && dot) note = ' (la semicorchea con puntillo no está disponible)';
   if (!h.filled && !stem && dot) note = ' (la redonda con puntillo no está disponible)';
-  return { dur: dur, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem, info: (h.filled ? 'cabeza llena' : 'cabeza vacía') + ', ' + (stem ? 'plica' : 'sin plica') + ', ' + nFlag + ' corchete' + (nFlag === 1 ? '' : 's') + (dot ? ', puntillo' : '') };
+  return { dur: dur, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem, info: (h.filled ? 'cabeza llena' : 'cabeza vacía') + ', ' + (stem ? 'plica' : 'sin plica') + ', ' + nFlag + ' corchete' + (nFlag === 1 ? '' : 's') + (dot ? ', puntillo' : '') + ' | ' + sum };
 }
 function penFinish() {
   clearTimeout(PEN.timer);
