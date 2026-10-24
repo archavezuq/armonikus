@@ -1199,23 +1199,24 @@ buildStaticUI();
   function size() { var w = cv.clientWidth, h = cv.clientHeight, old = null; try { old = cv.toDataURL(); } catch (e) { }
     var r = window.devicePixelRatio || 1; cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
+  function W0() { return parseFloat($('bdW').value) || 2.4; }
   function save() { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }
   function pos(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   function seg(a, b, w) {
     cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value;
-    cx.lineWidth = tool === 'eraser' ? 18 : w; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
+    cx.lineWidth = tool === 'eraser' ? 6 * w : w; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
   }
   cv.addEventListener('pointerdown', function (e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (e.pointerType === 'pen') cv._pen = true; if (e.pointerType === 'touch' && cv._pen) return;
     e.preventDefault(); drawing = { id: e.pointerId, p: pos(e) }; try { cv.setPointerCapture(e.pointerId); } catch (x) { }
-    seg(drawing.p, { x: drawing.p.x + 0.01, y: drawing.p.y }, 2.4);
+    seg(drawing.p, { x: drawing.p.x + 0.01, y: drawing.p.y }, W0());
   });
   cv.addEventListener('pointermove', function (e) {
     if (!drawing || e.pointerId !== drawing.id) return;
     if (e.pointerType === 'mouse' && !(e.buttons & 1)) { drawing = null; save(); return; }
     var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
-    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value; cx.lineWidth = tool === 'eraser' ? 18 : 2.4;
+    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value; cx.lineWidth = tool === 'eraser' ? 6 * W0() : W0();
     cx.beginPath(); cx.moveTo(drawing.p.x, drawing.p.y);
     evs.forEach(function (ev) { var q = pos(ev); cx.lineTo(q.x, q.y); drawing.p = q; });
     cx.stroke();
