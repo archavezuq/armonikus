@@ -1480,12 +1480,13 @@ $('bCite').addEventListener('click', function () {
 /* ================= inicio ================= */
 buildStaticUI();
 (function board() {
-  var cv = $('bdCv'), cx = cv.getContext('2d', { desynchronized: true }), tool = 'pen', drawing = null, KEY = 'lm3_board_v1';
-  function size() { var w = cv.clientWidth, h = cv.clientHeight, old = null; try { old = cv.toDataURL(); } catch (e) { }
+  var cv = $('bdCv'), cx = cv.getContext('2d'), tool = 'pen', drawing = null, KEY = 'lm3_board_v1';
+  function size() { var w = cv.clientWidth, h = cv.clientHeight, old = null; if (drawing || (w === cw && cv.width)) return; cw = w; try { old = cv.toDataURL(); } catch (e) { }
     var r = window.devicePixelRatio || 1; cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
   function W0() { return parseFloat($('bdW').value) || 2.4; }
-  function save() { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }
+  var svT = null, cw = 0;
+  function save() { clearTimeout(svT); svT = setTimeout(function () { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }, 1500); }
   function pos(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   function seg(a, b, w) {
     cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value;
@@ -1513,7 +1514,7 @@ buildStaticUI();
   $('bdClr').addEventListener('click', function () { if (confirm('¿Borrar toda la pizarra?')) { cx.clearRect(0, 0, cv.width, cv.height); save(); } });
   $('bdPen').classList.add('on');
   $('board').addEventListener('toggle', function () { if ($('board').open) { size(); try { var d = localStorage.getItem(KEY); if (d) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, cv.clientWidth, cv.clientHeight); }; im.src = d; } } catch (e) { } } });
-  window.addEventListener('resize', function () { if ($('board').open) size(); });
+  window.addEventListener('resize', function () { if ($('board').open && !drawing) size(); });
   size(); try { var d0 = localStorage.getItem(KEY); if (d0) { var im0 = new Image(); im0.onload = function () { cx.drawImage(im0, 0, 0, cv.clientWidth, cv.clientHeight); }; im0.src = d0; } } catch (e) { }
 })();
 try {
