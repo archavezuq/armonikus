@@ -785,7 +785,6 @@ function buildStaticUI() {
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) {
     var go = function () { var m = b.dataset.mode; ui.mode = (m === 'pen' && ui.mode === 'pen') ? 'write' : m; PEN.cur = null; syncUI(); };
     b.addEventListener('click', go);
-    b.addEventListener('pointerup', function (e) { if (e.pointerType !== 'mouse') go(); });
   });
   $('bNew').addEventListener('click', newExercise);
   $('bUndo').addEventListener('click', undo); $('bRedo').addEventListener('click', redoIt);
@@ -1195,6 +1194,39 @@ $('bCite').addEventListener('click', function () {
 
 /* ================= inicio ================= */
 buildStaticUI();
+(function board() {
+  var cv = $('bdCv'), cx = cv.getContext('2d'), tool = 'pen', drawing = null, KEY = 'lm3_board_v1';
+  function size() { var w = cv.clientWidth, h = cv.clientHeight, old = null; try { old = cv.toDataURL(); } catch (e) { }
+    var r = window.devicePixelRatio || 1; cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
+    if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
+  function save() { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }
+  function pos(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  function seg(a, b, w) {
+    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value;
+    cx.lineWidth = tool === 'eraser' ? 18 : w; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
+  }
+  cv.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.pointerType === 'pen') cv._pen = true; if (e.pointerType === 'touch' && cv._pen) return;
+    e.preventDefault(); drawing = { id: e.pointerId, p: pos(e) }; try { cv.setPointerCapture(e.pointerId); } catch (x) { }
+    seg(drawing.p, { x: drawing.p.x + 0.01, y: drawing.p.y }, 2.4);
+  });
+  cv.addEventListener('pointermove', function (e) {
+    if (!drawing || e.pointerId !== drawing.id) return;
+    if (e.pointerType !== 'touch' && !(e.buttons & 1) && !(e.pressure > 0)) { drawing = null; save(); return; }
+    var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
+    evs.forEach(function (ev) { var q = pos(ev); seg(drawing.p, q, 2.4); drawing.p = q; });
+  });
+  function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('lostpointercapture', end);
+  $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
+  $('bdEr').addEventListener('click', function () { tool = 'eraser'; $('bdEr').classList.add('on'); $('bdPen').classList.remove('on'); });
+  $('bdClr').addEventListener('click', function () { if (confirm('¿Borrar toda la pizarra?')) { cx.clearRect(0, 0, cv.width, cv.height); save(); } });
+  $('bdPen').classList.add('on');
+  $('board').addEventListener('toggle', function () { if ($('board').open) { size(); try { var d = localStorage.getItem(KEY); if (d) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, cv.clientWidth, cv.clientHeight); }; im.src = d; } } catch (e) { } } });
+  window.addEventListener('resize', function () { if ($('board').open) size(); });
+  size(); try { var d0 = localStorage.getItem(KEY); if (d0) { var im0 = new Image(); im0.onload = function () { cx.drawImage(im0, 0, 0, cv.clientWidth, cv.clientHeight); }; im0.src = d0; } } catch (e) { }
+})();
 try {
   var sv = JSON.parse(localStorage.getItem('lm3_satb_v1') || 'null');
   if (sv && sv.S && sv.S.cols) { S = sv.S; info = sv.info || info; if (!info.date) info.date = today(); if (!info.inst) info.inst = 'piano'; if (!info.bpm) info.bpm = 76; }

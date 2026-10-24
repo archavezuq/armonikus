@@ -69,8 +69,10 @@ svg.flow{display:block;width:100%;min-width:640px;height:auto;font-family:system
 body.pen-on #stage{touch-action:none;cursor:crosshair}
 #printArea{display:none}
 @media print{
-  #app,#palette,#cite,#mapa{display:none!important}
+  #app,#palette,#cite,#mapa,#board{display:none!important}
   #printArea{display:block}
   #printArea svg{width:100%;height:auto}
   @page{size:letter portrait;margin:10mm}
 }
+
+#bdCv{display:block;width:100%;height:320px;background:#fff;border:1px solid #bbb;border-radius:6px;touch-action:none;cursor:crosshair}
