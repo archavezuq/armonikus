@@ -549,14 +549,14 @@ function classifyStroke(pts) {
   pts = thin(pts);
   var S = PEN.S, b = pbox(pts), L = plen(pts), a = pts[0], z = pts[pts.length - 1], d = Math.hypot(a.x - z.x, a.y - z.y);
   var md = Math.max(b.w, b.h), diag = Math.hypot(b.w, b.h);
-  if (md < 0.7 * S) return { k: 'dot', b: b };
+  if (md < 0.7 * S) return { k: 'dot', b: b, pts: pts };
   if (b.h >= 2 * S && b.w <= 0.5 * b.h && L > 0 && d / L > 0.72) return { k: 'stem', b: b };
   if (md <= 3 * S && md >= 0.55 * S && b.h > 0 && b.w / b.h >= 0.35 && b.w / b.h <= 4) {
     var r = L / (Math.PI * (b.w + b.h) / 2), scrib = r > 2.2 || reversals(pts) >= 3, closed = d <= 0.55 * diag;
     if (scrib || closed) return { k: 'head', b: b, filled: scrib || centerInk(pts, b) };
   }
-  if (b.w >= 0.35 * S || b.h >= 0.5 * S) return { k: 'flag', b: b };
-  return { k: '?', b: b };
+  if (b.w >= 0.35 * S || b.h >= 0.5 * S) return { k: 'flag', b: b, pts: pts };
+  return { k: '?', b: b, pts: pts };
 }
 function isStemLike(pts) {
   var S = PEN.S, b = pbox(pts), L = plen(pts), a = pts[0], z = pts[pts.length - 1], d = Math.hypot(a.x - z.x, a.y - z.y);
@@ -591,13 +591,24 @@ function recognizePen(strokes) {
   var heads = cl.filter(function (c) { return c.k === 'head'; }), stems = cl.filter(function (c) { return c.k === 'stem'; });
   var flags = cl.filter(function (c) { return c.k === 'flag'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
   if (heads.length !== 1) return { noHead: !heads.length, err: 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno (negra, corchea). [Vi: ' + sum + ']' };
-  var h = heads[0], hb = h.b;
+  var h = heads[0], hb = h.b, extra = 0;
+  if (!stems.some(function (s2) { return s2.b.cx > hb.x0 - 0.9 * S && s2.b.cx < hb.x1 + 0.9 * S; })) {
+    for (var fi = 0; fi < flags.length; fi++) {
+      var f0 = flags[fi]; if (!f0.pts || f0.b.h < 2.5 * S) continue;
+      var e1 = f0.pts[0], e2 = f0.pts[f0.pts.length - 1], en = Math.abs(e1.x - hb.cx) <= Math.abs(e2.x - hb.cx) ? e1 : e2;
+      if (en.x > hb.x0 - 1.2 * S && en.x < hb.x1 + 1.2 * S && en.y > hb.y0 - 2 * S && en.y < hb.y1 + 2 * S) {
+        stems.push({ k: 'stem', b: { x0: en.x - 0.5, x1: en.x + 0.5, cx: en.x, w: 1, h: f0.b.h, y0: f0.b.y0, y1: f0.b.y1, cy: f0.b.cy } });
+        flags.splice(fi, 1); if (f0.b.w >= 0.8 * S) extra = 1; break;
+      }
+    }
+  }
   var stem = stems.filter(function (s) { return s.b.cx > hb.x0 - 0.9 * S && s.b.cx < hb.x1 + 0.9 * S && s.b.y0 < hb.y1 + 0.7 * S && s.b.y1 > hb.y0 - 0.7 * S; })[0] || null;
   var nFlag = 0;
   if (stem) {
     var up = stem.b.cy < hb.cy, endY = up ? stem.b.y0 : stem.b.y1;
     nFlag = flags.filter(function (f) { return Math.abs((up ? f.b.y0 : f.b.y1) - endY) < 4 * S && f.b.cx > stem.b.cx - 1.5 * S && f.b.cx < stem.b.cx + 3.5 * S; }).length;
   }
+  nFlag += extra;
   var dot = dots.some(function (p) { return p.b.cx > hb.x1 - 0.3 * S && p.b.cx < hb.x1 + 3 * S && Math.abs(p.b.cy - hb.cy) < 1.3 * S; });
   var dur;
   if (!h.filled) dur = stem ? (dot ? 'hd' : 'h') : 'w';
