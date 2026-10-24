@@ -584,13 +584,13 @@ function recognizePen(strokes) {
   var S = PEN.S, cl = strokes.map(classifyStroke);
   var heads = cl.filter(function (c) { return c.k === 'head'; }), stems = cl.filter(function (c) { return c.k === 'stem'; });
   var flags = cl.filter(function (c) { return c.k === 'flag'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
-  if (heads.length !== 1) return { err: heads.length ? 'Dibuja una sola nota a la vez.' : 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno (negra, corchea).' };
+  if (heads.length !== 1) return { noHead: !heads.length, err: heads.length ? 'Dibuja una sola nota a la vez.' : 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno (negra, corchea).' };
   var h = heads[0], hb = h.b;
   var stem = stems.filter(function (s) { return s.b.cx > hb.x0 - 0.9 * S && s.b.cx < hb.x1 + 0.9 * S && s.b.y0 < hb.y1 + 0.7 * S && s.b.y1 > hb.y0 - 0.7 * S; })[0] || null;
   var nFlag = 0;
   if (stem) {
     var up = stem.b.cy < hb.cy, endY = up ? stem.b.y0 : stem.b.y1;
-    nFlag = flags.filter(function (f) { return Math.abs((up ? f.b.y0 : f.b.y1) - endY) < 2.9 * S && f.b.cx > stem.b.cx - 1.2 * S && f.b.cx < stem.b.cx + 2.6 * S; }).length;
+    nFlag = flags.filter(function (f) { return Math.abs((up ? f.b.y0 : f.b.y1) - endY) < 4 * S && f.b.cx > stem.b.cx - 1.5 * S && f.b.cx < stem.b.cx + 3.5 * S; }).length;
   }
   var dot = dots.some(function (p) { return p.b.cx > hb.x1 - 0.3 * S && p.b.cx < hb.x1 + 3 * S && Math.abs(p.b.cy - hb.cy) < 1.3 * S; });
   var dur;
@@ -599,17 +599,23 @@ function recognizePen(strokes) {
   var note = '';
   if (dur === 's' && dot) note = ' (la semicorchea con puntillo no está disponible)';
   if (!h.filled && !stem && dot) note = ' (la redonda con puntillo no está disponible)';
-  return { dur: dur, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem };
+  return { dur: dur, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem, info: (h.filled ? 'cabeza llena' : 'cabeza vacía') + ', ' + (stem ? 'plica' : 'sin plica') + ', ' + nFlag + ' corchete' + (nFlag === 1 ? '' : 's') + (dot ? ', puntillo' : '') };
 }
 function penFinish() {
   clearTimeout(PEN.timer);
   var strokes = PEN.strokes; PEN.strokes = []; var g = $('ov').querySelector('#ink'); if (g) g.innerHTML = '';
   if (!strokes.length) return;
   var r = recognizePen(strokes);
+  if (r.noHead && PEN.last && Date.now() - PEN.last.t < 8000 && JSON.stringify(S) === PEN.last.snap) {
+    undo(); strokes = PEN.last.strokes.concat(strokes); r = recognizePen(strokes);
+  }
   if (r.err) { msg(r.err); return; }
   ui.dur = r.dur; ui.rest = false; syncUI();
   var m = ui.mode; ui.mode = 'write'; onClick({ x: r.cx, y: r.cy }, false); ui.mode = m; syncUI();
-  if (!$('msg').textContent) msg('Reconocí: ' + DUR[r.dur].name.toLowerCase() + r.note + '. Si no es lo que querías, pulsa «Deshacer» y vuelve a dibujarla.', true);
+  if (!$('msg').textContent) {
+    PEN.last = { strokes: strokes, t: Date.now(), snap: JSON.stringify(S) };
+    msg('Reconocí: ' + DUR[r.dur].name.toLowerCase() + r.note + ' (' + r.info + '). Si falta el corchete o el puntillo, dibújalo ahora junto a la nota; si no, «Deshacer».', true);
+  }
 }
 function initPen() {
   var stage = $('stage'), touches = {};
