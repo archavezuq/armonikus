@@ -558,7 +558,29 @@ function classifyStroke(pts) {
   if (b.w >= 0.35 * S || b.h >= 0.5 * S) return { k: 'flag', b: b };
   return { k: '?', b: b };
 }
+function isStemLike(pts) {
+  var S = PEN.S, b = pbox(pts), L = plen(pts), a = pts[0], z = pts[pts.length - 1], d = Math.hypot(a.x - z.x, a.y - z.y);
+  return b.h >= 2 * S && b.w <= 0.5 * b.h && L > 0 && d / L > 0.72;
+}
+function splitStemFlag(pts0) {
+  var S = PEN.S, pts = thin(pts0), b = pbox(pts);
+  if (b.h < 2 * S || isStemLike(pts)) return null;
+  for (var dir = 0; dir < 2; dir++) {
+    var p = dir ? pts.slice().reverse() : pts;
+    var ext = [0, 0];
+    p.forEach(function (q, i) { if (q.y < p[ext[0]].y) ext[0] = i; if (q.y > p[ext[1]].y) ext[1] = i; });
+    for (var e = 0; e < 2; e++) {
+      var k = ext[e]; if (k < 2 || k > p.length - 2) continue;
+      var lead = p.slice(0, k + 1), trail = p.slice(k);
+      if (isStemLike(lead) && plen(trail) >= 0.4 * S) return [lead, trail];
+    }
+  }
+  return null;
+}
 function recognizePen(strokes) {
+  var ex = [];
+  strokes.forEach(function (st) { var sp = splitStemFlag(st); if (sp) { ex.push(sp[0]); ex.push(sp[1]); } else ex.push(st); });
+  strokes = ex;
   var S = PEN.S, cl = strokes.map(classifyStroke);
   var heads = cl.filter(function (c) { return c.k === 'head'; }), stems = cl.filter(function (c) { return c.k === 'stem'; });
   var flags = cl.filter(function (c) { return c.k === 'flag'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
@@ -634,7 +656,7 @@ function initPen() {
       var m = ui.mode; ui.mode = 'write'; onClick(st.pts[0], false); ui.mode = m; syncUI(); return;
     }
     PEN.strokes.push(st.pts); drawInk();
-    clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 900);
+    clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 600);
   }
   stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
   window.addEventListener('pointerup', function (e) { delete touches[e.pointerId]; });
