@@ -596,6 +596,7 @@ function initPen() {
     return true;
   }
   function abort() { if (PEN.cur) { try { stage.releasePointerCapture(PEN.cur.id); } catch (x) { } } PEN.cur = null; drawInk(); }
+  ['touchstart', 'touchmove'].forEach(function (t) { stage.addEventListener(t, function (e) { if (ui.mode === 'pen') e.preventDefault(); }, { passive: false }); });
   stage.addEventListener('pointerdown', function (e) {
     if (e.pointerType === 'touch') { touches[e.pointerId] = 1; if (Object.keys(touches).length > 1) { abort(); return; } }
     if (ui.mode !== 'pen' || e.target.closest('.slot')) return;
@@ -1201,7 +1202,7 @@ buildStaticUI();
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
   function W0() { return parseFloat($('bdW').value) || 2.4; }
   var svT = null, cw = 0;
-  function save() { clearTimeout(svT); svT = setTimeout(function () { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }, 1500); }
+  function save() { clearTimeout(svT); svT = setTimeout(function () { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }, 3000); }
   function pos(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   function seg(a, b, w) {
     cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value;
@@ -1224,6 +1225,8 @@ buildStaticUI();
   };
   cv.addEventListener('pointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove', mv);
   cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  ['touchstart', 'touchmove', 'touchend'].forEach(function (t) { cv.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false }); });
+  cv.addEventListener('gesturestart', function (e) { e.preventDefault(); });
   function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });

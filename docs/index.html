@@ -83,7 +83,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
 }
 
 #bdCv{display:block;width:100%;height:320px;background:#fff;border:1px solid #bbb;border-radius:6px;touch-action:none;cursor:crosshair}
-#bdCv{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;will-change:transform}
+#bdCv{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 
 </style>
 </head>
@@ -145,7 +145,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v5</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v6</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>
@@ -882,6 +882,7 @@ function initPen() {
     return true;
   }
   function abort() { if (PEN.cur) { try { stage.releasePointerCapture(PEN.cur.id); } catch (x) { } } PEN.cur = null; drawInk(); }
+  ['touchstart', 'touchmove'].forEach(function (t) { stage.addEventListener(t, function (e) { if (ui.mode === 'pen') e.preventDefault(); }, { passive: false }); });
   stage.addEventListener('pointerdown', function (e) {
     if (e.pointerType === 'touch') { touches[e.pointerId] = 1; if (Object.keys(touches).length > 1) { abort(); return; } }
     if (ui.mode !== 'pen' || e.target.closest('.slot')) return;
@@ -1487,7 +1488,7 @@ buildStaticUI();
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
   function W0() { return parseFloat($('bdW').value) || 2.4; }
   var svT = null, cw = 0;
-  function save() { clearTimeout(svT); svT = setTimeout(function () { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }, 1500); }
+  function save() { clearTimeout(svT); svT = setTimeout(function () { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }, 3000); }
   function pos(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   function seg(a, b, w) {
     cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value;
@@ -1510,6 +1511,8 @@ buildStaticUI();
   };
   cv.addEventListener('pointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove', mv);
   cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  ['touchstart', 'touchmove', 'touchend'].forEach(function (t) { cv.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false }); });
+  cv.addEventListener('gesturestart', function (e) { e.preventDefault(); });
   function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
