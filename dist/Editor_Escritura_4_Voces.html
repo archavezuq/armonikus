@@ -921,7 +921,7 @@ function initPen() {
     PEN.strokes.push(st.pts); drawInk();
     clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 900);
   }
-  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up); stage.addEventListener('lostpointercapture', up);
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
   window.addEventListener('pointerup', function (e) { delete touches[e.pointerId]; });
   window.addEventListener('pointercancel', function (e) { delete touches[e.pointerId]; });
   window.addEventListener('blur', abort);
@@ -1511,7 +1511,7 @@ buildStaticUI();
   cv.addEventListener('pointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove', mv);
   cv.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
-  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('lostpointercapture', end);
+  cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
   $('bdEr').addEventListener('click', function () { tool = 'eraser'; $('bdEr').classList.add('on'); $('bdPen').classList.remove('on'); });
   $('bdClr').addEventListener('click', function () { if (confirm('¿Borrar toda la pizarra?')) { cx.clearRect(0, 0, cv.width, cv.height); save(); } });
