@@ -455,7 +455,7 @@ function writeNote(ci, vi, nv, D) {
   return null;
 }
 function onClick(p, right) {
-  var h = hitTest(p); if (!h) return;
+  var h = hitTest(p); if (!h) { msg('No pude ubicar la nota: escríbela dentro del pentagrama, sobre el acorde o en el compás sombreado.'); return; }
   var vi = ui.voice, mode = right ? 'del' : ui.mode, mlen = TIMES[S.time].b;
   msg('');
   if (S.lock && vi === 0 && mode !== 'delchord') { msg('La soprano es la melodía dada y no se puede modificar.'); return; }
@@ -550,7 +550,7 @@ function classifyStroke(pts) {
   var md = Math.max(b.w, b.h), diag = Math.hypot(b.w, b.h);
   if (md < 0.7 * S) return { k: 'dot', b: b };
   if (b.h >= 2 * S && b.w <= 0.5 * b.h && L > 0 && d / L > 0.72) return { k: 'stem', b: b };
-  if (md <= 2.8 * S && md >= 0.6 * S && b.h > 0 && b.w / b.h >= 0.45 && b.w / b.h <= 3.2) {
+  if (md <= 3 * S && md >= 0.55 * S && b.h > 0 && b.w / b.h >= 0.35 && b.w / b.h <= 4) {
     var r = L / (Math.PI * (b.w + b.h) / 2), scrib = r > 2.2 || reversals(pts) >= 3, closed = d <= 0.55 * diag;
     if (scrib || closed) return { k: 'head', b: b, filled: scrib || centerInk(pts, b) };
   }
@@ -589,12 +589,20 @@ function penFinish() {
   if (!$('msg').textContent) msg('Reconocí: ' + DUR[r.dur].name.toLowerCase() + r.note + '. Si no es lo que querías, pulsa «Deshacer» y vuelve a dibujarla.', true);
 }
 function initPen() {
-  var stage = $('stage');
+  var stage = $('stage'), touches = {};
+  function contact(e) {
+    if (e.pointerType === 'mouse') return !!(e.buttons & 1);
+    if (e.pointerType === 'pen') return !!(e.buttons & 1) || e.pressure > 0;
+    return true;
+  }
+  function abort() { if (PEN.cur) { try { stage.releasePointerCapture(PEN.cur.id); } catch (x) { } } PEN.cur = null; drawInk(); }
   stage.addEventListener('pointerdown', function (e) {
+    if (e.pointerType === 'touch') { touches[e.pointerId] = 1; if (Object.keys(touches).length > 1) { abort(); return; } }
     if (ui.mode !== 'pen' || e.target.closest('.slot')) return;
     if (e.pointerType === 'pen') PEN.sawPen = true;
-    if (e.pointerType === 'touch' && PEN.sawPen) return;
+    if (e.pointerType === 'touch' && (PEN.sawPen || Math.max(e.width || 0, e.height || 0) > 45)) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (!contact(e)) return;
     e.preventDefault();
     var p = stagePos(e);
     if (PEN.strokes.length) {
@@ -602,28 +610,35 @@ function initPen() {
       if (p.x > gb.x1 + 3 * PEN.S || p.x < gb.x0 - 3 * PEN.S || Math.abs(p.y - gb.cy) > 9 * PEN.S) penFinish();
     }
     clearTimeout(PEN.timer);
-    PEN.cur = { pts: [p], t0: Date.now(), id: e.pointerId };
+    PEN.cur = { pts: [p], t0: Date.now(), id: e.pointerId, type: e.pointerType };
     try { stage.setPointerCapture(e.pointerId); } catch (x) { }
     drawInk();
   });
   stage.addEventListener('pointermove', function (e) {
     if (!PEN.cur || e.pointerId !== PEN.cur.id) return;
+    if (ui.mode !== 'pen') { abort(); return; }
+    if (!contact(e)) { up(e); return; }
     var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
     evs.forEach(function (ev) { PEN.cur.pts.push(stagePos(ev)); });
     drawInk();
   });
   function up(e) {
+    delete touches[e.pointerId];
     if (!PEN.cur || e.pointerId !== PEN.cur.id) return;
     var st = PEN.cur; PEN.cur = null;
+    try { stage.releasePointerCapture(e.pointerId); } catch (x) { }
     var b = pbox(st.pts);
     if (Math.max(b.w, b.h) < 0.7 * PEN.S && !PEN.strokes.length && Date.now() - st.t0 < 350) {
       var g = $('ov').querySelector('#ink'); if (g) g.innerHTML = '';
       var m = ui.mode; ui.mode = 'write'; onClick(st.pts[0], false); ui.mode = m; syncUI(); return;
     }
     PEN.strokes.push(st.pts); drawInk();
-    clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 650);
+    clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 900);
   }
-  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up); stage.addEventListener('lostpointercapture', up);
+  window.addEventListener('pointerup', function (e) { delete touches[e.pointerId]; });
+  window.addEventListener('pointercancel', function (e) { delete touches[e.pointerId]; });
+  window.addEventListener('blur', abort);
 }
 
 /* ================= paletas ================= */
@@ -768,8 +783,11 @@ function buildStaticUI() {
     b.addEventListener('click', function () { var a = parseInt(b.dataset.acc, 10); ui.acc = (ui.acc === a) ? 'auto' : a; ui.rest = false; syncUI(); });
   });
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) {
-    b.addEventListener('click', function () { ui.mode = b.dataset.mode; syncUI(); });
+    var go = function () { var m = b.dataset.mode; ui.mode = (m === 'pen' && ui.mode === 'pen') ? 'write' : m; PEN.cur = null; syncUI(); };
+    b.addEventListener('click', go);
+    b.addEventListener('pointerup', function (e) { if (e.pointerType !== 'mouse') go(); });
   });
+  $('bNew').addEventListener('click', newExercise);
   $('bUndo').addEventListener('click', undo); $('bRedo').addEventListener('click', redoIt);
   $('sKey').addEventListener('change', function () { var v = this.value; mutate(function () { S.key = v; }); });
   $('sTime').addEventListener('change', function () {
@@ -1140,6 +1158,15 @@ function genCode() {
     s: S.cols.filter(function (c) { return !c.v[0].h; }).map(function (c) { var e = c.v[0]; return [e.d || c.d, e.r ? 'r' : e.l + e.o + ':' + e.a]; })
   };
   $('tOut').value = packCode(o); msg('Código generado.', true);
+}
+function newExercise() {
+  if (S.cols.length && !confirm('¿Empezar un ejercicio nuevo? Se borrará lo que hay en pantalla (puedes recuperarlo con «Deshacer»).')) return;
+  var ns = newState(); ns.lines = S.lines;
+  pushHist(); S = ns; ui.voice = 0; ui.mode = 'write'; ui.own = false; $('cOwn').checked = false;
+  $('iCode').value = '';
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
+  normalize(); refresh();
+  msg('Ejercicio nuevo: todas las voces y controles están libres.', true);
 }
 function loadCode(str) {
   str = (str || '').trim(); if (!str) { msg('Pega primero el código del ejercicio.'); return; }
