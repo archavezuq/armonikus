@@ -63,7 +63,7 @@ var ui = { voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: fal
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
 function newState() {
-  return { etitle: '', key: 'C', time: '4/4', measures: 4, pickup: 0, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
+  return { etitle: '', key: 'C', kc: {}, time: '4/4', measures: 4, pickup: 0, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function $(id) { return document.getElementById(id); }
@@ -72,7 +72,14 @@ function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
 /* ================= música ================= */
 function keyInfo(spec) { for (var i = 0; i < KEYS.length; i++) if (KEYS[i][0] === spec) return KEYS[i]; return KEYS[0]; }
-function isMinor() { return !!keyInfo(S.key)[4]; }
+function isMinor(key) { return !!keyInfo(key || S.key)[4]; }
+/* cambios de tonalidad: S.kc = { n.º de compás (como se ve en pantalla) : tonalidad }, vale desde ese compás en adelante */
+function kcList() { var kc = S.kc || {}; return Object.keys(kc).map(Number).filter(function (d) { return d >= 1 && KEYS.some(function (k) { return k[0] === kc[d]; }); }).sort(function (a, b) { return a - b; }); }
+function measNum(k) { return S.pickup ? k : k + 1; }
+function keyAtM(k) { var d = measNum(k), key = S.key; kcList().forEach(function (x) { if (x <= d) key = S.kc[x]; }); return key; }
+function colKeys(part) { var o = {}; part.ms.forEach(function (m, k) { var kk = keyAtM(k); m.forEach(function (i) { o[i] = kk; }); }); return o; }
+function keyAtCol(ci) { return colKeys(partition(S.cols, TIMES[S.time].b))[ci] || S.key; }
+function cancelCount(a, b) { var x = keyInfo(a)[3], y = keyInfo(b)[3]; if (!x || a === b) return 0; if (y === 0 || (x > 0) !== (y > 0)) return Math.abs(x); return Math.max(0, Math.abs(x) - Math.abs(y)); }
 function keyAlts(spec) {
   var n = keyInfo(spec)[3], a = { c: 0, d: 0, e: 0, f: 0, g: 0, a: 0, b: 0 }, i;
   if (n > 0) { for (i = 0; i < n; i++) a[SHARPS[i]] = 1; } else { for (i = 0; i < -n; i++) a[FLATS[i]] = -1; }
@@ -100,16 +107,16 @@ function partition(cols, mlen, pk) {
   return { ms: ms, acc: acc, ok: ok, bad: bad };
 }
 function usedMeasures(part) { return part.ms[part.ms.length - 1].length ? part.ms.length : part.ms.length - 1; }
-function isMajorDeg(b) { return isMinor() ? (b === 'III' || b === 'V' || b === 'VI') : (b === 'IV' || b === 'V'); }
+function isMajorDeg(b, key) { return isMinor(key) ? (b === 'III' || b === 'V' || b === 'VI') : (b === 'IV' || b === 'V'); }
 function rnText(rn) { return rn.b; }
 function figParts(f) { return f === '6' ? ['6'] : f === '64' ? ['6', '4'] : f === '7' ? ['7'] : f === '65' ? ['6', '5'] : f === '43' ? ['4', '3'] : f === '42' ? ['4', '2'] : []; }
-function rnHTML(rn) {
-  var fp = figParts(rn.f), mj = S.lines && !rn.of && isMajorDeg(rn.b);
+function rnHTML(rn, key) {
+  var fp = figParts(rn.f), mj = S.lines && !rn.of && isMajorDeg(rn.b, key);
   return '<span class="rnb' + (mj ? ' mj' : '') + '">' + esc(rn.b) + '</span>' + (fp.length ? '<span class="fig">' + fp.map(function (p) { return '<i>' + p + '</i>'; }).join('') + '</span>' : '') + (rn.of ? '<span class="rnb">/' + esc(rn.of) + '</span>' : '');
 }
 function noteName(n) { return n.l.toUpperCase() + accSym(n.a); }
 function csText(cs) { return noteName(cs) + QUAL[cs.q] + (cs.f && !NO_F5[cs.q] ? '(' + (cs.f === 'b5' ? '♭' : '♯') + '5)' : '') + (cs.bl ? '/' + noteName(cs.bl) : ''); }
-function keyLabel() { return keyInfo(S.key)[2] + ':'; }
+function keyLabel(key) { return keyInfo(key || S.key)[2] + ':'; }
 
 /* ================= historial ================= */
 function pushHist() { hist.push(JSON.stringify(S)); if (hist.length > 120) hist.shift(); redo = []; }
@@ -238,25 +245,31 @@ function render(host, o) {
   var r = new VF.Renderer(host, VF.Renderer.Backends.SVG);
   r.resize(W, H);
   var ctx = r.getContext(), svg = host.querySelector('svg');
-  var alts = keyAlts(S.key), nAcc = Math.abs(keyInfo(S.key)[3]);
   var L = { H: H, W: W, systems: [], part: part, N: N, cols: {} };
   var stOpt = { space_above_staff_ln: 0, space_below_staff_ln: 0 };
   for (var s = 0; s < nSys; s++) {
     var top = headerH + s * SYSH, yT = top + TOPPAD, yB = yT + 40 + GAP;
     var m0 = s * per, m1 = Math.min(N, m0 + per), cnt = m1 - m0;
-    var pad0 = 46 + 10 * nAcc + (s === 0 ? 30 : 0);
-    var avail = W - LEFT - RIGHT - pad0, wts = [], tot = 0, k;
+    var kM0 = keyAtM(m0), kPrev = m0 > 0 ? keyAtM(m0 - 1) : null, cn0 = (kPrev && kPrev !== kM0) ? cancelCount(kPrev, kM0) : 0;
+    var pad0 = 46 + 10 * (Math.abs(keyInfo(kM0)[3]) + cn0) + (s === 0 ? 30 : 0);
+    var extra = {}, exTot = 0, k;
+    for (k = m0 + 1; k < m1; k++) if (keyAtM(k) !== keyAtM(k - 1)) { extra[k] = 10 * (Math.abs(keyInfo(keyAtM(k))[3]) + cancelCount(keyAtM(k - 1), keyAtM(k))) + 16; exTot += extra[k]; }
+    var avail = W - LEFT - RIGHT - pad0 - exTot, wts = [], tot = 0;
     var padsK = {};
     for (k = m0; k < m1; k++) { padsK[k] = padsFor(part.ms[k] || [], (k === 0 && S.pickup) ? S.pickup : mlen); var w = Math.max(3, (part.ms[k] || []).length + padsK[k].length); wts.push(w); tot += w; }
     if (nSys > 1) tot += 4 * (per - cnt);
     var x = LEFT, sys = { i: s, top: top, yT: yT, yB: yB, ms: [], cols: [] };
     for (k = m0; k < m1; k++) {
       var idxs = part.ms[k] || [];
-      var mw = avail * wts[k - m0] / tot + (k === m0 ? pad0 : 0);
+      var mw = avail * wts[k - m0] / tot + (k === m0 ? pad0 : 0) + (extra[k] || 0), kk = keyAtM(k), alts = keyAlts(kk);
       var tr = new VF.Stave(x, yT, mw, stOpt), ba = new VF.Stave(x, yB, mw, stOpt);
       if (k === m0) {
-        tr.addClef('treble').addKeySignature(S.key); ba.addClef('bass').addKeySignature(S.key);
+        tr.addClef('treble').addKeySignature(kM0, cn0 ? kPrev : undefined); ba.addClef('bass').addKeySignature(kM0, cn0 ? kPrev : undefined);
         if (s === 0) { tr.addTimeSignature(TIMES[S.time].sym); ba.addTimeSignature(TIMES[S.time].sym); }
+      }
+      if (k > m0 && extra[k] !== undefined) {
+        tr.addKeySignature(kk, keyAtM(k - 1)); ba.addKeySignature(kk, keyAtM(k - 1));
+        svgText(svg, x + 5, yB + 40 + 24, keyLabel(kk), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
       }
       if (k === N - 1) { tr.setEndBarType(VF.Barline.type.END); ba.setEndBarType(VF.Barline.type.END); }
       tr.setContext(ctx).draw(); ba.setContext(ctx).draw();
@@ -269,8 +282,8 @@ function render(host, o) {
       var rec = { k: k, x0: x, x1: x + mw, idxs: idxs, nsx: tr.getNoteStartX() };
       if (idxs.length) {
         var tv = mkVoices(idxs, [0, 1], 'treble', o, alts, padsK[k]), bv = mkVoices(idxs, [2, 3], 'bass', o, alts, padsK[k]);
-        VF.Accidental.applyAccidentals(tv.voices, S.key);
-        VF.Accidental.applyAccidentals(bv.voices, S.key);
+        VF.Accidental.applyAccidentals(tv.voices, kk);
+        VF.Accidental.applyAccidentals(bv.voices, kk);
         var fmt = new VF.Formatter();
         fmt.joinVoices(tv.voices); fmt.joinVoices(bv.voices);
         fmt.format(tv.voices.concat(bv.voices), Math.max(40, tr.getNoteEndX() - tr.getNoteStartX() - 16), { align_rests: true });
@@ -286,7 +299,7 @@ function render(host, o) {
       x += mw;
     }
     L.systems.push(sys);
-    svgText(svg, LEFT + 4, yB + 40 + 58, keyLabel(), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
+    svgText(svg, LEFT + 4, yB + 40 + 58, keyLabel(kM0), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
   }
   if (o.header) drawHeader(svg);
   if (o.labels) drawLabels(svg, L);
@@ -311,13 +324,14 @@ function csRows(sys) {
   return rows;
 }
 function drawLabels(svg, L) {
+  var kOf = colKeys(L.part);
   S.cols.forEach(function (c, ci) {
     var p = L.cols[ci]; if (!p) return; var sys = L.systems[p.sys];
     if (c.cs) svgText(svg, p.x, sys.yT - 36 - 18 * (csRows(sys)[ci] || 0), csText(c.cs), csText(c.cs).length > 8 ? 11 : csText(c.cs).length > 5 ? 13 : 15, { 'text-anchor': 'middle', 'font-weight': '600' });
     if (c.rn) {
       var y = sys.yB + 40 + 58, font = '17px Georgia, serif', bw = textW(c.rn.b, font);
       svgText(svg, p.x, y, c.rn.b, 17, { 'text-anchor': 'middle', 'font-family': 'Georgia, Times New Roman, serif' });
-      if (S.lines && !c.rn.of && isMajorDeg(c.rn.b)) {
+      if (S.lines && !c.rn.of && isMajorDeg(c.rn.b, kOf[ci])) {
         svgEl('line', { x1: p.x - bw / 2 - 2, x2: p.x + bw / 2 + 2, y1: y - 15, y2: y - 15, stroke: '#111', 'stroke-width': 1.5 }, svg);
         svgEl('line', { x1: p.x - bw / 2 - 2, x2: p.x + bw / 2 + 2, y1: y + 4, y2: y + 4, stroke: '#111', 'stroke-width': 1.5 }, svg);
       }
@@ -330,7 +344,7 @@ function drawLabels(svg, L) {
 
 /* ================= superposición interactiva ================= */
 function buildOverlay() {
-  var slots = $('slots'), ov = $('ov');
+  var slots = $('slots'), ov = $('ov'), kOf = colKeys(layout.part);
   slots.innerHTML = ''; ov.innerHTML = '';
   ov.setAttribute('width', W); ov.setAttribute('height', layout.H); ov.setAttribute('viewBox', '0 0 ' + W + ' ' + layout.H);
   // zona del siguiente acorde
@@ -353,7 +367,7 @@ function buildOverlay() {
       var wd = Math.max(22, Math.min(46, gap - 3)), col = S.cols[c.idx];
       slots.appendChild(makeSlot('cs', c.idx, c.x - wd / 2, sys.yT - 54 - 18 * (rws[c.idx] || 0), wd, col.cs ? csText(col.cs) : '', col.cs));
       var rw = col.rn && (col.rn.of || col.rn.b.length > 3) ? Math.max(wd, col.rn.of ? 64 : 44) : wd;
-      slots.appendChild(makeSlot('rn', c.idx, c.x - rw / 2, sys.yB + 40 + 40, rw, col.rn ? rnHTML(col.rn) : '', col.rn));
+      slots.appendChild(makeSlot('rn', c.idx, c.x - rw / 2, sys.yB + 40 + 40, rw, col.rn ? rnHTML(col.rn, kOf[c.idx]) : '', col.rn));
     });
   });
 }
@@ -405,11 +419,12 @@ function hitTest(p) {
   }
   return null;
 }
-function pitchAt(vi, y, sysI) {
+function keyForHit(h) { if (h && h.col != null) return keyAtCol(h.col); var b = layout && layout.band; return b ? keyAtM(b.k) : S.key; }
+function pitchAt(vi, y, sysI, key) {
   var sys = layout.systems[sysI], clef = VOICES[vi].clef, yb = (clef === 'treble' ? sys.yT : sys.yB) + 40;
   var step = Math.round((yb - y) / 5); step = clef === 'treble' ? Math.max(-8, Math.min(14, step)) : Math.max(-9, Math.min(16, step));
   var d = (clef === 'treble' ? 30 : 18) + step, l = LET[((d % 7) + 7) % 7], o = Math.floor(d / 7);
-  var a = ui.acc === 'auto' ? keyAlts(S.key)[l] : ui.acc;
+  var a = ui.acc === 'auto' ? keyAlts(key || S.key)[l] : ui.acc;
   return { l: l, o: o, a: a, step: step, y: yb - step * 5 };
 }
 function updatePreview(p) {
@@ -417,7 +432,7 @@ function updatePreview(p) {
   if (ui.mode !== 'write' || ui.rest) return;
   var h = hitTest(p); if (!h || (h.col == null && !h.append)) return;
   if (S.lock && ui.voice === 0) return;
-  var pt = pitchAt(ui.voice, p.y, h.sys), x = h.col != null ? layout.cols[h.col].x : h.bx;
+  var pt = pitchAt(ui.voice, p.y, h.sys, keyForHit(h)), x = h.col != null ? layout.cols[h.col].x : h.bx;
   var c = VOICES[ui.voice].c;
   if (pt.step < 0 || pt.step > 8) {
     var from = pt.step < 0 ? pt.step : 8, to = pt.step < 0 ? 0 : pt.step;
@@ -464,7 +479,7 @@ function onClick(p, right) {
       var cc = S.cols[h.col], cur0 = cc.v[vi], nv;
       if (ui.rest) nv = { r: 1 };
       else {
-        var pt = pitchAt(vi, p.y, h.sys); nv = { l: pt.l, o: pt.o, a: pt.a };
+        var pt = pitchAt(vi, p.y, h.sys, keyForHit(h)); nv = { l: pt.l, o: pt.o, a: pt.a };
         if (cur0 && !cur0.r && !cur0.h && cur0.l === nv.l && cur0.o === nv.o && cur0.a === nv.a) nv = null;
       }
       var D = ui.own ? ui.dur : cc.d;
@@ -478,7 +493,7 @@ function onClick(p, right) {
       if (acc + DUR[ui.dur].b > ((part.ms.length === 1 && S.pickup) ? S.pickup : mlen) + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return; }
       mutate(function () {
         var v = [null, null, null, null];
-        if (ui.rest) v[vi] = { r: 1 }; else { var pt = pitchAt(vi, p.y, h.sys); v[vi] = { l: pt.l, o: pt.o, a: pt.a }; }
+        if (ui.rest) v[vi] = { r: 1 }; else { var pt = pitchAt(vi, p.y, h.sys, keyForHit(h)); v[vi] = { l: pt.l, o: pt.o, a: pt.a }; }
         S.cols.push({ d: ui.dur, v: v, rn: null, cs: null });
       });
       ui.acc = 'auto'; syncUI();
@@ -742,11 +757,11 @@ function pbtn(label, fn, sel, html) {
 }
 function openRomanPalette(ci, anchor) {
   pal.innerHTML = '';
-  var minor = isMinor(), bases = minor ? RN_MIN : RN_MAJ;
+  var kc0 = keyAtCol(ci), minor = isMinor(kc0), bases = minor ? RN_MIN : RN_MAJ;
   function build() {
     pal.innerHTML = '';
     var c = S.cols[ci], cur = c.rn;
-    var h = document.createElement('h4'); h.textContent = 'Grado (' + keyInfo(S.key)[1] + ')'; pal.appendChild(h);
+    var h = document.createElement('h4'); h.textContent = 'Grado (' + keyInfo(kc0)[1] + ')'; pal.appendChild(h);
     var r1 = document.createElement('div'); r1.className = 'pr';
     bases.forEach(function (b) {
       r1.appendChild(pbtn(b, function () { setRN({ b: b, f: cur ? cur.f : '', of: cur && cur.of && RN_SEC[b] ? cur.of : '' }); }, cur && cur.b === b));
@@ -852,6 +867,7 @@ function buildStaticUI() {
   g1.label = 'Mayores'; g2.label = 'Menores';
   KEYS.forEach(function (k) { var o = document.createElement('option'); o.value = k[0]; o.textContent = k[1]; (k[4] ? g2 : g1).appendChild(o); });
   sk.appendChild(g1); sk.appendChild(g2);
+  $('sKcK').appendChild(g1.cloneNode(true)); $('sKcK').appendChild(g2.cloneNode(true)); $('sKcK').value = 'G';
   var bv = $('bVoice');
   VOICES.forEach(function (v, i) {
     var b = document.createElement('button'); b.className = 'vb'; b.style.setProperty('--c', v.c);
@@ -884,6 +900,15 @@ function buildStaticUI() {
   })();
   $('bUndo').addEventListener('click', undo); $('bRedo').addEventListener('click', redoIt);
   $('sKey').addEventListener('change', function () { var v = this.value; mutate(function () { S.key = v; }); });
+  $('bKcAdd').addEventListener('click', function () {
+    var d = parseInt($('nKcM').value, 10), key = $('sKcK').value, min = S.pickup ? 1 : 2, tot = S.measures - (S.pickup ? 1 : 0);
+    if (!(d >= min)) { msg('El cambio de tonalidad puede empezar desde el compás ' + min + ' en adelante.'); return; }
+    if (d > tot) { msg('El ejercicio tiene ' + tot + ' compases. Aumenta «N.º de compases» o elige un compás menor.'); return; }
+    var k = S.pickup ? d : d - 1, had = S.kc && S.kc[d];
+    if (!had && keyAtM(k - 1) === key) { msg('Antes de ese compás ya está en ' + keyInfo(key)[1] + '.'); return; }
+    mutate(function () { if (!S.kc) S.kc = {}; S.kc[d] = key; });
+    msg('Desde el compás ' + d + ': ' + keyInfo(key)[1] + '.', true);
+  });
   $('sTime').addEventListener('change', function () {
     var v = this.value, old = S.time; S.time = v;
     var pk = S.pickup && S.pickup < TIMES[v].b ? S.pickup : 0;
@@ -936,7 +961,14 @@ function buildStaticUI() {
   window.addEventListener('resize', fit);
 }
 function syncUI() {
-  $('sKey').value = S.key; $('sTime').value = S.time; $('nMeas').value = S.measures - (S.pickup ? 1 : 0); fillPick(); $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
+  $('sKey').value = S.key;
+  var kl = $('kcList'); kl.innerHTML = '';
+  kcList().forEach(function (d) {
+    var b = document.createElement('button'); b.textContent = 'Compás ' + d + ': ' + keyInfo(S.kc[d])[1] + ' ✕'; b.title = 'Quitar este cambio de tonalidad'; b.disabled = !!S.lock;
+    b.addEventListener('click', function () { mutate(function () { delete S.kc[d]; }); }); kl.appendChild(b);
+  });
+  $('nKcM').min = S.pickup ? 1 : 2;
+  $('sTime').value = S.time; $('nMeas').value = S.measures - (S.pickup ? 1 : 0); fillPick(); $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
   $('iName').value = info.name; $('iGroup').value = info.group; $('iDate').value = info.date; $('sInst').value = info.inst || 'piano'; $('nBpm').value = info.bpm || 76;
   Array.prototype.forEach.call(document.querySelectorAll('#bVoice button'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
   Array.prototype.forEach.call(document.querySelectorAll('#bDur button'), function (b) { b.classList.toggle('on', b.dataset.d === ui.dur); });
@@ -946,7 +978,7 @@ function syncUI() {
   document.body.classList.toggle('pen-on', ui.mode === 'pen');
   if (ui.mode !== 'pen' && typeof penClear === 'function') penClear();
   var lk = !!S.lock;
-  ['sKey', 'sTime', 'nMeas', 'sPick'].forEach(function (id) { $(id).disabled = lk; });
+  ['sKey', 'sKcK', 'nKcM', 'bKcAdd', 'sTime', 'nMeas', 'sPick'].forEach(function (id) { $(id).disabled = lk; });
   $('bCheck').style.display = S.chk ? '' : 'none';
   $('bUndo').disabled = !hist.length; $('bRedo').disabled = !redo.length;
   var sb = document.querySelector('#bVoice button[data-v="0"]'); sb.textContent = lk ? 'S 🔒' : 'S';
@@ -1096,7 +1128,7 @@ function runChecks() {
   var cols = S.cols, mlen = TIMES[S.time].b, part = partition(cols, mlen), where = {}, out = [], pos = {};
   var pk = S.pickup || 0;
   part.ms.forEach(function (m, k) { var a = (k === 0 && pk) ? mlen - pk : 0; m.forEach(function (i) { where[i] = (pk ? (k === 0 ? 'Anacrusa' : 'Compás ' + k) : 'Compás ' + (k + 1)) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
-  var lt = (tonicPC(S.key) + 11) % 12;
+  var kOf = colKeys(part);
   var EFF = new Map(); cols.forEach(function (c, i) { EFF.set(c, [0, 1, 2, 3].map(function (v) { return effEntry(cols, i, v); })); });
   function np(c, vi) { var e = EFF.get(c)[vi]; return e && !e.r ? e : null; }
   function add(i, t) { out.push({ ci: i, t: where[i] + ': ' + t }); }
@@ -1111,7 +1143,7 @@ function runChecks() {
       });
       if (midi(np(c, 0)) - midi(np(c, 1)) > 12) add(i, 'espaciamiento mayor a una 8.ª entre Soprano y Alto.');
       if (midi(np(c, 1)) - midi(np(c, 2)) > 12) add(i, 'espaciamiento mayor a una 8.ª entre Alto y Tenor.');
-      var cnt = 0; [0, 1, 2, 3].forEach(function (v) { if (((midi(np(c, v)) % 12) + 12) % 12 === lt) cnt++; });
+      var lt = (tonicPC(kOf[i] || S.key) + 11) % 12, cnt = 0; [0, 1, 2, 3].forEach(function (v) { if (((midi(np(c, v)) % 12) + 12) % 12 === lt) cnt++; });
       if (cnt >= 2) add(i, 'sensible duplicada.');
     }
     if (i > 0) {
@@ -1232,15 +1264,16 @@ function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.lengt
 var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', ed: 'E', e: 'e', s: 's' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
 function packCode(o) {
   var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '0' ? '' : a); }); return DCH[r[0]] + p; }).join('');
-  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes;
+  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
 }
 function unpackCode(str) {
-  var p = str.split('.'); if (p[0] !== 'A1' || p.length !== 6) throw 0;
+  var p = str.split('.'); if (p[0] !== 'A1' || (p.length !== 6 && p.length !== 7)) throw 0;
   var key = p[1].replace('s', '#'), tm = p[2].replace(/^(\d)(\d)$/, '$1/$2'), g = p[3].split('-');
   var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], pk: (+g[3] || 0) / 2, s: [] };
   var re = /([wHhQqEes])(r|([a-g])(\d)([-+]?))/g, m, used = 0;
   while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : 0)]); }
   if (used !== p[5].length) throw 0;
+  if (p.length === 7) { o.kc = {}; p[6].split(',').forEach(function (x) { var q = /^(\d+):([A-Ga-g][sb]?m?)$/.exec(x); if (!q) throw 0; o.kc[+q[1]] = q[2].replace('s', '#'); }); }
   return o;
 }
 function genCode() {
@@ -1248,7 +1281,7 @@ function genCode() {
   if (!S.cols.length) { msg('Escribe primero la melodía en la voz Soprano.'); return; }
   if (bad) { msg('Hay acordes sin nota de soprano. Completa la melodía antes de generar el código.'); return; }
   var o = {
-    v: 1, t: $('tTitle').value.trim(), k: S.key, m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
+    v: 1, t: $('tTitle').value.trim(), k: S.key, kc: kcList().reduce(function (a, d) { a[d] = S.kc[d]; return a; }, {}), m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
     s: S.cols.filter(function (c) { return !c.v[0].h; }).map(function (c) { var e = c.v[0]; return [e.d || c.d, e.r ? 'r' : e.l + e.o + ':' + e.a]; })
   };
   $('tOut').value = packCode(o); msg('Código generado.', true);
@@ -1269,7 +1302,8 @@ function loadCode(str) {
     var o = str.indexOf('A1.') === 0 ? unpackCode(str) : JSON.parse(unb64u(str));
     if (!o || o.v !== 1 || !KEYS.some(function (k) { return k[0] === o.k; }) || !TIMES[o.m]) throw 0;
     var ns = newState(); ns.etitle = o.t || ''; ns.key = o.k; ns.time = o.m; ns.measures = o.n || 4; ns.pickup = o.pk || 0; ns.perSystem = o.p || 4; ns.lock = !!o.l; ns.chk = o.c !== 0;
-    ns.lines = S.lines;
+    ns.lines = S.lines; ns.kc = {};
+    if (o.kc) Object.keys(o.kc).forEach(function (d) { if (!(+d >= 1) || !KEYS.some(function (k) { return k[0] === o.kc[d]; })) throw 0; ns.kc[+d] = o.kc[d]; });
     o.s.forEach(function (r) {
       if (!DUR[r[0]]) throw 0; var v = [null, null, null, null];
       if (r[1] === 'r') v[0] = { r: 1 }; else { var m = /^([a-g])(\d):(-?\d)$/.exec(r[1]); if (!m) throw 0; v[0] = { l: m[1], o: +m[2], a: +m[3] }; }
@@ -1369,7 +1403,9 @@ function applySpeech(cmds) {
       }
       var d = o * 7 + idx, step = d - (VOICES[vi].clef === 'treble' ? 30 : 18), lim = VOICES[vi].clef === 'treble' ? [-8, 14] : [-9, 16];
       if (step < lim[0] || step > lim[1]) { msg('Esa nota queda fuera del pentagrama de ' + VOICES[vi].n + ' (' + c.l.toUpperCase() + o + ').'); ok = false; return; }
-      var a = c.a === null ? keyAlts(S.key)[c.l] : c.a;
+      var tci = -1, qq; for (qq = 0; qq < S.cols.length; qq++) if (!S.cols[qq].v[vi]) { tci = qq; break; }
+      var tk = tci >= 0 ? keyAtCol(tci) : keyAtM(Math.max(0, partition(S.cols, TIMES[S.time].b).ms.length - 1));
+      var a = c.a === null ? keyAlts(tk)[c.l] : c.a;
       ok = putNoteVoice(vi, { l: c.l, o: o, a: a });
       if (ok) did.push(c.l.toUpperCase() + o + (a === 1 ? '♯' : a === -1 ? '♭' : ''));
     }

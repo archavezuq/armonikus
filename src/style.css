@@ -77,3 +77,5 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
 
 #bdCv{display:block;width:100%;height:320px;background:#fff;border:1px solid #bbb;border-radius:6px;touch-action:none;cursor:crosshair}
 #bdCv{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+
+.kcl{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.kcl:empty{display:none}.kcl button{padding:2px 8px;font-size:12px}
