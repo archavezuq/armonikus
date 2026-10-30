@@ -128,7 +128,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
       <div class="grp"><span class="t">Figura</span><div class="b" id="bDur"></div><label class="chk" title="Si está activado, la figura elegida vale solo para la voz que escribes y puede ser distinta a la de las otras voces"><input type="checkbox" id="cOwn"> Ritmo propio por voz</label></div>
       <div class="grp"><span class="t">Silencio / alteración</span><div class="b"><button id="bRest" title="Escribir silencio">Silencio</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button></div></div>
       <div class="grp"><span class="t">Herramienta</span><div class="b" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button><button data-mode="pen" title="Dibuja la nota a mano con lápiz o dedo: cabeza, plica, corchete y puntillo">Lápiz ✎</button></div></div>
-      <div class="grp"><span class="t">Voz</span><div class="b"><button id="bMic" title="Dicta la nota y la altura, por ejemplo «sol 4». También: «alto», «negra», «silencio», «deshacer»">🎤 Dictar notas</button></div></div>
+      <div class="grp"><span class="t">Voz</span><div class="b"><button id="bMic" title="Dicta la nota y la altura, por ejemplo «sol 4». También: «alto», «negra», «silencio», «deshacer»">🎤 Dictar notas</button><select id="sMicLang" title="Idioma del dictado"><option value="es-CO">Español</option><option value="en-US">English</option></select></div></div>
     </div>
     <div class="row">
       <div class="grp"><span class="t">Edición</span><div class="b"><button id="bUndo">Deshacer</button><button id="bRedo">Rehacer</button></div></div>
@@ -1160,6 +1160,15 @@ function buildStaticUI() {
   });
   $('bNew').addEventListener('click', newExercise);
   $('bMic').addEventListener('click', function () { toggleMic(); });
+  (function () {
+    var sel = $('sMicLang'); if (!sel) return;
+    try { var sv = localStorage.getItem('armonikus_mic_lang'); if (sv && /^(es-CO|en-US)$/.test(sv)) sel.value = sv; } catch (e) { }
+    MIC.lang = sel.value;
+    sel.addEventListener('change', function () {
+      MIC.lang = this.value; try { localStorage.setItem('armonikus_mic_lang', this.value); } catch (e) { }
+      if (MIC.on) { toggleMic(); toggleMic(); }
+    });
+  })();
   $('bUndo').addEventListener('click', undo); $('bRedo').addEventListener('click', redoIt);
   $('sKey').addEventListener('change', function () { var v = this.value; mutate(function () { S.key = v; }); });
   $('sTime').addEventListener('change', function () {
@@ -1567,34 +1576,50 @@ $('bCite').addEventListener('click', function () {
 
 
 /* ================= dictado por voz ================= */
-var MIC = { rec: null, on: false };
+var MIC = { rec: null, on: false, lang: 'es-CO' };
 var NOTE_WORDS = { 'do': 'c', 're': 'd', 'mi': 'e', 'fa': 'f', 'sol': 'g', 'la': 'a', 'si': 'b' };
-var NUM_WORDS = { cero: 0, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7 };
+var LETTER_WORDS = { c: 'c', d: 'd', e: 'e', f: 'f', g: 'g', a: 'a', b: 'b' };
+/* el reconocedor a veces escribe otra palabra que suena igual; solo se corrige si despues viene una altura o alteracion */
+var NOTE_ALIAS = { doe: 'do', dough: 'do', dos: 'do', ray: 're', rey: 're', red: 're', ree: 're', me: 'mi', mee: 'mi', mie: 'mi', mil: 'mi', fah: 'fa', fas: 'fa', faa: 'fa',
+  soul: 'sol', sole: 'sol', sur: 'sol', sul: 'sol', sal: 'sol', las: 'la', lah: 'la', ci: 'si', se: 'si', ce: 'si', sie: 'si', sii: 'si', sin: 'si',
+  dee: 'd', ee: 'e', eff: 'f', ef: 'f', gee: 'g', jee: 'g', ay: 'a', bee: 'b', be: 'b' };
+var NUM_WORDS = { cero: 0, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7 };
+var NUM_ALIAS = { to: 2, too: 2, tu: 2, tree: 3, free: 3, for: 4, fore: 4, won: 1, juan: 1, sex: 6, cinko: 5 };
 var ACC_WORDS = { sostenido: 1, sharp: 1, bemol: -1, flat: -1, becuadro: 0, natural: 0 };
-var DUR_WORDS = { redonda: 'w', blanca: 'h', negra: 'q', corchea: 'e', semicorchea: 's' };
+var DUR_WORDS = { redonda: 'w', blanca: 'h', negra: 'q', corchea: 'e', semicorchea: 's', whole: 'w', half: 'h', quarter: 'q', eighth: 'e', sixteenth: 's' };
 var DOT_OF = { h: 'hd', q: 'qd', e: 'ed' };
-var VOICE_WORDS = { soprano: 0, alto: 1, tenor: 2, bajo: 3 };
+var VOICE_WORDS = { soprano: 0, alto: 1, tenor: 2, bajo: 3, bass: 3, base: 3 };
 function parseSpeech(text) {
+  var en = /^en/i.test(MIC.lang);
   var t = String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/#/g, ' sostenido ').replace(/[,.;:!?¿¡"]/g, ' ');
   t = t.replace(/\b(do|re|mi|fa|sol|la|si)([0-9])\b/g, '$1 $2').replace(/\b(do|re|mi|fa|sol|la|si)(sostenido|bemol)\b/g, '$1 $2');
+  t = t.replace(/\b([a-g])([0-9])\b/g, '$1 $2').replace(/\bb\s*flat\b/g, 'b flat').replace(/\b(be|vee)\s*mol\b/g, 'bemol').replace(/\bdotted\s+(whole|half|quarter|eighth|8th)\b/g, '$1 dot').replace(/\b8th\b/g, 'eighth').replace(/\b16th\b/g, 'sixteenth');
   t = t.replace(/\b2([0-9])\b/g, 'do $1').replace(/\b(dos|do|dó)\s*(?=([0-9]|cero|uno|una|dos|tres|cuatro|cinco|seis|siete)\b)/g, 'do ').replace(/\b(me|mih)\b(?=\s*[0-9])/g, 'mi').replace(/\b(ce)\b(?=\s*[0-9])/g, 'si');
   var tk = t.split(/\s+/).filter(Boolean), out = [], i, n = tk.length;
-  function numAt(j) { if (j >= n) return null; if (/^[0-9]$/.test(tk[j])) return +tk[j]; return NUM_WORDS.hasOwnProperty(tk[j]) ? NUM_WORDS[tk[j]] : null; }
+  function isNum(x) { return /^[0-9]$/.test(x) || NUM_WORDS.hasOwnProperty(x) || NUM_ALIAS.hasOwnProperty(x); }
+  function numAt(j) { if (j >= n) return null; var x = tk[j]; if (/^[0-9]$/.test(x)) return +x; if (NUM_WORDS.hasOwnProperty(x)) return NUM_WORDS[x]; return NUM_ALIAS.hasOwnProperty(x) ? NUM_ALIAS[x] : null; }
+  function followed(j) { return j < n && (isNum(tk[j]) || ACC_WORDS.hasOwnProperty(tk[j])); }
   for (i = 0; i < n; i++) {
-    var w = tk[i];
-    if (NOTE_WORDS.hasOwnProperty(w)) {
+    var w = tk[i], key = null;
+    if (NOTE_WORDS.hasOwnProperty(w)) key = NOTE_WORDS[w];
+    else if (followed(i + 1)) {
+      if (NOTE_ALIAS.hasOwnProperty(w)) { var al = NOTE_ALIAS[w]; key = NOTE_WORDS.hasOwnProperty(al) ? NOTE_WORDS[al] : al; }
+      else if (LETTER_WORDS.hasOwnProperty(w)) key = LETTER_WORDS[w];
+      else if (w === 'see' || w === 'sea') key = en ? 'c' : 'b';
+    }
+    if (key) {
       var a = null, o = null, j = i + 1;
       if (j < n && ACC_WORDS.hasOwnProperty(tk[j])) { a = ACC_WORDS[tk[j]]; j++; }
       if (numAt(j) !== null) { o = numAt(j); j++; }
       else if (a === null && j < n && ACC_WORDS.hasOwnProperty(tk[j])) { a = ACC_WORDS[tk[j]]; j++; if (numAt(j) !== null) { o = numAt(j); j++; } }
-      out.push({ t: 'note', l: NOTE_WORDS[w], a: a, o: o }); i = j - 1;
+      out.push({ t: 'note', l: key, a: a, o: o }); i = j - 1;
     } else if (VOICE_WORDS.hasOwnProperty(w)) out.push({ t: 'voice', v: VOICE_WORDS[w] });
     else if (DUR_WORDS.hasOwnProperty(w)) {
       var dd = DUR_WORDS[w], k = i + 1; if (tk[k] === 'con') k++;
-      if (tk[k] === 'puntillo' && DOT_OF[dd]) { dd = DOT_OF[dd]; i = k; }
+      if ((tk[k] === 'puntillo' || tk[k] === 'dot' || tk[k] === 'dotted') && DOT_OF[dd]) { dd = DOT_OF[dd]; i = k; }
       out.push({ t: 'dur', d: dd });
-    } else if (w === 'silencio') out.push({ t: 'rest' });
-    else if (w === 'deshacer' || w === 'atras') out.push({ t: 'undo' });
+    } else if (w === 'silencio' || w === 'rest' || w === 'silence') out.push({ t: 'rest' });
+    else if (w === 'deshacer' || w === 'atras' || w === 'undo') out.push({ t: 'undo' });
   }
   return out;
 }
@@ -1640,8 +1665,8 @@ function applySpeech(cmds) {
 }
 function handleSpeech(alts) {
   var cmds = null, heard = '';
-  for (var i = 0; i < alts.length; i++) { var p = parseSpeech(alts[i]); if (p.length) { cmds = p; heard = alts[i]; break; } }
-  if (!cmds) { msg('Escuché «' + (alts[0] || '') + '», pero no reconocí una nota. Di, por ejemplo: «sol 4», «fa sostenido 3», «negra», «alto».'); return; }
+  for (var i = 0; i < alts.length; i++) { var p = parseSpeech(alts[i]); if (p.length && (!cmds || p.length > cmds.length)) { cmds = p; heard = alts[i]; } }
+  if (!cmds) { msg('Escuché «' + (alts[0] || '') + '», pero no reconocí una nota. Di, por ejemplo: «sol 4», «fa sostenido 3», «negra», «alto» (o en inglés: «G 4», «F sharp 3», «quarter», «bass»).'); return; }
   msg(''); var did = applySpeech(cmds);
   if (did.length && !$('msg').textContent) msg('Escuché «' + heard.trim() + '» → ' + did.join(', ') + '.', true);
 }
@@ -1649,7 +1674,7 @@ function toggleMic() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { msg('Este navegador no permite dictado por voz. Usa Chrome (Android/PC) o Safari (iPad).'); return; }
   if (MIC.on) { MIC.on = false; try { MIC.rec.stop(); } catch (e) { } $('bMic').classList.remove('on'); msg('Dictado desactivado.', true); return; }
-  var r = new SR(); MIC.rec = r; r.lang = 'es-CO'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 3;
+  var r = new SR(); MIC.rec = r; MIC.lang = ($('sMicLang') && $('sMicLang').value) || 'es-CO'; r.lang = MIC.lang; r.continuous = true; r.interimResults = false; r.maxAlternatives = 8;
   r.onresult = function (e) {
     for (var i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) {
       var alts = []; for (var j = 0; j < e.results[i].length; j++) alts.push(e.results[i][j].transcript);
