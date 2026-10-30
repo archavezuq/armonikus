@@ -145,7 +145,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v11</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v12</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>
@@ -817,85 +817,123 @@ function reversals(pts) {
   }
   return n;
 }
-function centerInk(pts, b) {
-  var rc = 0.2 * Math.min(b.w, b.h) + 0.5;
-  for (var i = 1; i < pts.length; i++) {
-    var x0 = pts[i - 1].x, y0 = pts[i - 1].y, x1 = pts[i].x, y1 = pts[i].y, n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
-    for (var k = 0; k <= n; k++) if (Math.hypot(x0 + (x1 - x0) * k / n - b.cx, y0 + (y1 - y0) * k / n - b.cy) <= rc) return true;
-  }
-  return false;
-}
 function thin(pts) {
   var q = [pts[0]];
   for (var i = 1; i < pts.length; i++) { var l = q[q.length - 1]; if (Math.hypot(pts[i].x - l.x, pts[i].y - l.y) >= 2.5) q.push(pts[i]); }
   var z = pts[pts.length - 1], l2 = q[q.length - 1]; if (l2 !== z) q.push(z);
   return q;
 }
-function classifyStroke(pts) {
-  pts = thin(pts);
-  var S = PEN.S, b = pbox(pts), L = plen(pts), a = pts[0], z = pts[pts.length - 1], d = Math.hypot(a.x - z.x, a.y - z.y);
-  var md = Math.max(b.w, b.h), diag = Math.hypot(b.w, b.h);
-  if (md < 0.7 * S) return { k: 'dot', b: b, pts: pts };
-  if (b.h >= 2 * S && b.w <= 0.5 * b.h && L > 0 && d / L > 0.72) return { k: 'stem', b: b };
-  if (md <= 3 * S && md >= 0.55 * S && b.h > 0 && b.w / b.h >= 0.35 && b.w / b.h <= 4) {
-    var r = L / (Math.PI * (b.w + b.h) / 2), scrib = r > 2.2 || reversals(pts) >= 3, closed = d <= 0.55 * diag;
-    if (scrib || closed) return { k: 'head', b: b, filled: scrib || centerInk(pts, b) };
+/* fracción de la zona central del óvalo cubierta por tinta: ~1 = relleno, ~0 = vacío */
+function centerCover(pts, b) {
+  var rx = Math.max(b.w / 2, 1), ry = Math.max(b.h / 2, 1), hit = {}, i, k;
+  for (i = 1; i < pts.length; i++) {
+    var x0 = pts[i - 1].x, y0 = pts[i - 1].y, x1 = pts[i].x, y1 = pts[i].y, n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+    for (k = 0; k <= n; k++) { var x = x0 + (x1 - x0) * k / n, y = y0 + (y1 - y0) * k / n;
+      for (var dx = -1; dx <= 1; dx++) for (var dy = -1; dy <= 1; dy++) hit[Math.round(x) + dx + ',' + (Math.round(y) + dy)] = 1; }
   }
-  if (b.w >= 0.35 * S || b.h >= 0.5 * S) return { k: 'flag', b: b, pts: pts };
-  return { k: '?', b: b, pts: pts };
+  var tot = 0, cov = 0, X, Y;
+  for (X = Math.floor(b.x0); X <= Math.ceil(b.x1); X++) for (Y = Math.floor(b.y0); Y <= Math.ceil(b.y1); Y++) {
+    var ux = (X - b.cx) / rx, uy = (Y - b.cy) / ry;
+    if (ux * ux + uy * uy <= 0.2) { tot++; if (hit[X + ',' + Y]) cov++; }
+  }
+  return tot ? cov / tot : 1;
 }
-function isStemLike(pts) {
+function isStemLike(pts, minH) {
   var S = PEN.S, b = pbox(pts), L = plen(pts), a = pts[0], z = pts[pts.length - 1], d = Math.hypot(a.x - z.x, a.y - z.y);
-  return b.h >= 2 * S && b.w <= 0.5 * b.h && L > 0 && d / L > 0.72;
+  return b.h >= (minH || 1.5) * S && b.w <= 0.6 * b.h && L > 0 && d / L > 0.65;
 }
-function splitStemFlag(pts0) {
-  var S = PEN.S, pts = thin(pts0), b = pbox(pts);
-  if (b.h < 2 * S || isStemLike(pts)) return null;
+function classifyStroke(pts0) {
+  var pts = thin(pts0), S = PEN.S, b = pbox(pts), L = plen(pts), a = pts[0], z = pts[pts.length - 1], d = Math.hypot(a.x - z.x, a.y - z.y);
+  var md = Math.max(b.w, b.h), mn = Math.min(b.w, b.h), diag = Math.hypot(b.w, b.h);
+  if (pts0.forceHead) { var c0 = centerCover(pts, b), r0 = L / (Math.PI * (b.w + b.h) / 2 || 1), rv0 = reversals(pts); return { k: 'head', b: b, pts: pts, rev: rv0, cc: c0, filled: c0 > 0.4 || r0 > 1.7 || (rv0 >= 3 && c0 >= 0.3) }; }
+  if (md < 0.7 * S) return { k: 'dot', b: b, pts: pts, rev: 0 };
+  if (isStemLike(pts)) return { k: 'stem', b: b, pts: pts, rev: 0 };
+  var rev = reversals(pts);
+  if (md <= 3.6 * S && md >= 0.55 * S) {
+    var cc = centerCover(pts, b), ratio = L / (Math.PI * (b.w + b.h) / 2 || 1);
+    var closed = d <= 0.6 * diag && L >= 1.6 * md, scrib = cc >= 0.55 || ratio > 1.7 || (rev >= 3 && cc >= 0.3);
+    var okShape = (mn / md >= 0.2 || scrib) && L >= 1.8 * md;
+    if (okShape && (scrib || closed)) return { k: 'head', b: b, pts: pts, rev: rev, cc: cc, filled: scrib || cc > 0.4 };
+  }
+  if (b.w >= 0.3 * S || b.h >= 0.5 * S) return { k: 'flag', b: b, pts: pts, rev: rev, L: L };
+  return { k: '?', b: b, pts: pts, rev: rev };
+}
+/* plica + corchete en un solo trazo */
+function splitStemFlag(pts) {
+  var S = PEN.S, n = pts.length;
   for (var dir = 0; dir < 2; dir++) {
-    var p = dir ? pts.slice().reverse() : pts;
-    var ext = [0, 0];
+    var p = dir ? pts.slice().reverse() : pts, ext = [0, 0];
     p.forEach(function (q, i) { if (q.y < p[ext[0]].y) ext[0] = i; if (q.y > p[ext[1]].y) ext[1] = i; });
     for (var e = 0; e < 2; e++) {
-      var k = ext[e]; if (k < 2 || k > p.length - 2) continue;
-      var lead = p.slice(0, k + 1), trail = p.slice(k);
-      if (isStemLike(lead) && plen(trail) >= 0.4 * S) return [lead, trail];
+      var kk = ext[e]; if (kk < 2 || kk > n - 2) continue;
+      var l2 = p.slice(0, kk + 1), tr = p.slice(kk);
+      if (isStemLike(l2, 1.5) && plen(tr) >= 0.4 * S && pbox(tr).w >= 0.5 * S) return [l2, tr];
     }
   }
   return null;
 }
+/* un solo trazo que une cabeza + plica (+ corchete): lo separo en partes */
+function splitCompound(pts0, noHead) {
+  var S = PEN.S, pts = thin(pts0), b = pbox(pts);
+  if (b.h < 2 * S) return null;
+  for (var dir = 0; dir < (noHead ? 0 : 2); dir++) {
+    var p = dir ? pts.slice().reverse() : pts, n = p.length, k;
+    for (k = 3; k < n - 2; k++) {
+      var lead = p.slice(0, k + 1), lb = pbox(lead), md = Math.max(lb.w, lb.h);
+      if (md > 3.6 * S) break;
+      if (md < 0.55 * S) continue;
+      var rest = p.slice(k);
+      var inner = isStemLike(rest, 1.5) ? [rest] : splitStemFlag(rest);
+      if (inner && plen(lead) >= 2.2 * md && (Math.hypot(lead[0].x - lead[lead.length - 1].x, lead[0].y - lead[lead.length - 1].y) <= 0.55 * md || centerCover(lead, lb) >= 0.5)) { lead.forceHead = true; return [lead].concat(inner); }
+    }
+  }
+  var sf = splitStemFlag(pts); return (sf && sf[0].length > 2) ? sf : null;
+}
 function recognizePen(strokes) {
   var ex = [];
-  strokes.forEach(function (st) { var sp = splitStemFlag(st); if (sp) { ex.push(sp[0]); ex.push(sp[1]); } else ex.push(st); });
-  strokes = ex;
-  var S = PEN.S, cl = strokes.map(classifyStroke);
+  var hasHead = strokes.some(function (st) { return st.length > 1 && classifyStroke(st).k === 'head'; });
+  strokes.forEach(function (st) { if (st.length < 2) { ex.push(st); return; } var sp = splitCompound(st, hasHead); if (sp) sp.forEach(function (x) { ex.push(x); }); else ex.push(st); });
+  var S = PEN.S, cl = ex.filter(function (x) { return x.length; }).map(classifyStroke);
   var sum = cl.map(function (c) { return c.k + ' ' + (Math.round(c.b.w / S * 10) / 10) + '×' + (Math.round(c.b.h / S * 10) / 10); }).join(', ');
-  var hs0 = cl.filter(function (c) { return c.k === 'head'; });
+  var hs0 = cl.filter(function (c) { return c.k === 'head'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
   if (hs0.length > 1) {
     var big = hs0.slice().sort(function (a, b2) { return (b2.b.w * b2.b.h) - (a.b.w * a.b.h); })[0];
-    cl.forEach(function (c) { if (c.k === 'head' && c !== big) c.k = 'flag'; });
+    cl.forEach(function (c) {
+      if (c.k !== 'head' || c === big) return;
+      var md = Math.max(c.b.w, c.b.h);
+      if (md < 1.2 * S && c.b.cx > big.b.x1 - 0.3 * S && c.b.cx < big.b.x1 + 3.5 * S && Math.abs(c.b.cy - big.b.cy) < 1.6 * S) c.k = 'dot'; else c.k = 'flag';
+      if (c.k === 'flag') c.L = plen(c.pts);
+    });
+    dots = cl.filter(function (c) { return c.k === 'dot'; });
   }
   var heads = cl.filter(function (c) { return c.k === 'head'; }), stems = cl.filter(function (c) { return c.k === 'stem'; });
-  var flags = cl.filter(function (c) { return c.k === 'flag'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
-  if (heads.length !== 1) return { noHead: !heads.length, err: 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno (negra, corchea). [Vi: ' + sum + ']' };
+  var flags = cl.filter(function (c) { return c.k === 'flag'; });
+  if (heads.length !== 1) return { noHead: !heads.length, err: 'No vi la cabeza de la nota. Dibuja un óvalo vacío (blanca, redonda) o un óvalo relleno o rayado (negra, corchea). [Vi: ' + sum + ']' };
   var h = heads[0], hb = h.b, extra = 0;
-  if (!stems.some(function (s2) { return s2.b.cx > hb.x0 - 0.9 * S && s2.b.cx < hb.x1 + 0.9 * S; })) {
+  var near = stems.filter(function (s) { return s.b.cx > hb.x0 - 1.4 * S && s.b.cx < hb.x1 + 1.4 * S && s.b.y0 < hb.y1 + 1.4 * S && s.b.y1 > hb.y0 - 1.4 * S; });
+  var stem = near.sort(function (a, b2) { return Math.abs(a.b.cx - hb.cx) - Math.abs(b2.b.cx - hb.cx); })[0] || null;
+  stems.forEach(function (st2) { if (st2 !== stem && st2.pts) { st2.k = 'flag'; st2.rev = 0; st2.L = plen(st2.pts); flags.push(st2); } });
+  if (!stem) {  /* trazo alto que sale de la cabeza, aunque no sea recto */
     for (var fi = 0; fi < flags.length; fi++) {
-      var f0 = flags[fi]; if (!f0.pts || f0.b.h < 2.5 * S) continue;
+      var f0 = flags[fi]; if (f0.b.h < 2 * S) continue;
       var e1 = f0.pts[0], e2 = f0.pts[f0.pts.length - 1], en = Math.abs(e1.x - hb.cx) <= Math.abs(e2.x - hb.cx) ? e1 : e2;
-      if (en.x > hb.x0 - 1.2 * S && en.x < hb.x1 + 1.2 * S && en.y > hb.y0 - 2 * S && en.y < hb.y1 + 2 * S) {
-        stems.push({ k: 'stem', b: { x0: en.x - 0.5, x1: en.x + 0.5, cx: en.x, w: 1, h: f0.b.h, y0: f0.b.y0, y1: f0.b.y1, cy: f0.b.cy } });
+      if (en.x > hb.x0 - 1.4 * S && en.x < hb.x1 + 1.4 * S && en.y > hb.y0 - 2 * S && en.y < hb.y1 + 2 * S) {
+        stem = { k: 'stem', b: { x0: en.x - 0.5, x1: en.x + 0.5, cx: en.x, w: 1, h: f0.b.h, y0: f0.b.y0, y1: f0.b.y1, cy: f0.b.cy } };
         flags.splice(fi, 1); if (f0.b.w >= 0.8 * S) extra = 1; break;
       }
     }
   }
-  var stem = stems.filter(function (s) { return s.b.cx > hb.x0 - 0.9 * S && s.b.cx < hb.x1 + 0.9 * S && s.b.y0 < hb.y1 + 0.7 * S && s.b.y1 > hb.y0 - 0.7 * S; })[0] || null;
   var nFlag = 0;
   if (stem) {
     var up = stem.b.cy < hb.cy, endY = up ? stem.b.y0 : stem.b.y1;
-    nFlag = flags.filter(function (f) { return Math.abs((up ? f.b.y0 : f.b.y1) - endY) < 4 * S && f.b.cx > stem.b.cx - 1.5 * S && f.b.cx < stem.b.cx + 3.5 * S; }).length;
+    flags.forEach(function (f) {
+      var ny = up ? f.b.y0 : f.b.y1, fy = up ? f.b.y1 : f.b.y0;
+      var okY = Math.abs(ny - endY) < 4.5 * S || (f.b.y0 < endY + 3 * S && f.b.y1 > endY - 3 * S);
+      if (okY && f.b.x1 > stem.b.cx - 2.5 * S && f.b.x0 < stem.b.cx + 4.5 * S) nFlag += (f.rev >= 3 && f.L > 4 * S) ? 2 : 1;
+    });
   }
   nFlag += extra;
-  var dot = dots.some(function (p) { return p.b.cx > hb.x1 - 0.3 * S && p.b.cx < hb.x1 + 3 * S && Math.abs(p.b.cy - hb.cy) < 1.3 * S; });
+  var dot = dots.some(function (p) { return p.b.cx > hb.x1 - 0.4 * S && p.b.cx < hb.x1 + 3.5 * S && Math.abs(p.b.cy - hb.cy) < 1.6 * S; });
   var dur;
   if (!h.filled) dur = stem ? (dot ? 'hd' : 'h') : 'w';
   else dur = stem ? (nFlag >= 2 ? 's' : nFlag === 1 ? (dot ? 'ed' : 'e') : (dot ? 'qd' : 'q')) : (dot ? 'qd' : 'q');
