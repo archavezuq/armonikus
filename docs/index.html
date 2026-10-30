@@ -128,6 +128,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
       <div class="grp"><span class="t">Figura</span><div class="b" id="bDur"></div><label class="chk" title="Si está activado, la figura elegida vale solo para la voz que escribes y puede ser distinta a la de las otras voces"><input type="checkbox" id="cOwn"> Ritmo propio por voz</label></div>
       <div class="grp"><span class="t">Silencio / alteración</span><div class="b"><button id="bRest" title="Escribir silencio">Silencio</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button></div></div>
       <div class="grp"><span class="t">Herramienta</span><div class="b" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button><button data-mode="pen" title="Dibuja la nota a mano con lápiz o dedo: cabeza, plica, corchete y puntillo">Lápiz ✎</button></div></div>
+      <div class="grp"><span class="t">Voz</span><div class="b"><button id="bMic" title="Dicta la nota y la altura, por ejemplo «sol 4». También: «alto», «negra», «silencio», «deshacer»">🎤 Dictar notas</button></div></div>
     </div>
     <div class="row">
       <div class="grp"><span class="t">Edición</span><div class="b"><button id="bUndo">Deshacer</button><button id="bRedo">Rehacer</button></div></div>
@@ -145,7 +146,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v12</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v13</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>
@@ -1158,6 +1159,7 @@ function buildStaticUI() {
     b.addEventListener('click', go);
   });
   $('bNew').addEventListener('click', newExercise);
+  $('bMic').addEventListener('click', function () { toggleMic(); });
   $('bUndo').addEventListener('click', undo); $('bRedo').addEventListener('click', redoIt);
   $('sKey').addEventListener('change', function () { var v = this.value; mutate(function () { S.key = v; }); });
   $('sTime').addEventListener('change', function () {
@@ -1563,6 +1565,104 @@ $('bCite').addEventListener('click', function () {
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(tx).then(function () { msg('Cita copiada.', true); }, fb); else fb();
 });
 
+
+/* ================= dictado por voz ================= */
+var MIC = { rec: null, on: false };
+var NOTE_WORDS = { 'do': 'c', 're': 'd', 'mi': 'e', 'fa': 'f', 'sol': 'g', 'la': 'a', 'si': 'b' };
+var NUM_WORDS = { cero: 0, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7 };
+var ACC_WORDS = { sostenido: 1, sharp: 1, bemol: -1, flat: -1, becuadro: 0, natural: 0 };
+var DUR_WORDS = { redonda: 'w', blanca: 'h', negra: 'q', corchea: 'e', semicorchea: 's' };
+var DOT_OF = { h: 'hd', q: 'qd', e: 'ed' };
+var VOICE_WORDS = { soprano: 0, alto: 1, tenor: 2, bajo: 3 };
+function parseSpeech(text) {
+  var t = String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/#/g, ' sostenido ').replace(/[,.;:!?¿¡"]/g, ' ');
+  t = t.replace(/\b(do|re|mi|fa|sol|la|si)([0-9])\b/g, '$1 $2').replace(/\b(do|re|mi|fa|sol|la|si)(sostenido|bemol)\b/g, '$1 $2');
+  var tk = t.split(/\s+/).filter(Boolean), out = [], i, n = tk.length;
+  function numAt(j) { if (j >= n) return null; if (/^[0-9]$/.test(tk[j])) return +tk[j]; return NUM_WORDS.hasOwnProperty(tk[j]) ? NUM_WORDS[tk[j]] : null; }
+  for (i = 0; i < n; i++) {
+    var w = tk[i];
+    if (NOTE_WORDS.hasOwnProperty(w)) {
+      var a = null, o = null, j = i + 1;
+      if (j < n && ACC_WORDS.hasOwnProperty(tk[j])) { a = ACC_WORDS[tk[j]]; j++; }
+      if (numAt(j) !== null) { o = numAt(j); j++; }
+      else if (a === null && j < n && ACC_WORDS.hasOwnProperty(tk[j])) { a = ACC_WORDS[tk[j]]; j++; if (numAt(j) !== null) { o = numAt(j); j++; } }
+      out.push({ t: 'note', l: NOTE_WORDS[w], a: a, o: o }); i = j - 1;
+    } else if (VOICE_WORDS.hasOwnProperty(w)) out.push({ t: 'voice', v: VOICE_WORDS[w] });
+    else if (DUR_WORDS.hasOwnProperty(w)) {
+      var dd = DUR_WORDS[w], k = i + 1; if (tk[k] === 'con') k++;
+      if (tk[k] === 'puntillo' && DOT_OF[dd]) { dd = DOT_OF[dd]; i = k; }
+      out.push({ t: 'dur', d: dd });
+    } else if (w === 'silencio') out.push({ t: 'rest' });
+    else if (w === 'deshacer' || w === 'atras') out.push({ t: 'undo' });
+  }
+  return out;
+}
+function lastDiatonic(vi) {
+  for (var i = S.cols.length - 1; i >= 0; i--) { var e = S.cols[i].v[vi]; if (e && e.l) return e.o * 7 + LET.indexOf(e.l); }
+  return null;
+}
+function putNoteVoice(vi, nv) {
+  if (S.lock && vi === 0) { msg('La soprano es la melodía dada y no se puede modificar.'); return false; }
+  var ci = -1, i;
+  for (i = 0; i < S.cols.length; i++) if (!S.cols[i].v[vi]) { ci = i; break; }
+  if (ci >= 0) { var D = ui.own ? ui.dur : S.cols[ci].d; return tryEdit(function () { return writeNote(ci, vi, nv, D); }); }
+  if (S.lock) { msg('Este ejercicio tiene el ritmo fijo: no hay más acordes donde escribir.'); return false; }
+  if (!layout || !layout.band) { msg('Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».'); return false; }
+  var part = layout.part, last = part.ms[part.ms.length - 1], acc = 0;
+  last.forEach(function (x) { acc += DUR[S.cols[x].d].b; });
+  if (acc + DUR[ui.dur].b > ((part.ms.length === 1 && S.pickup) ? S.pickup : TIMES[S.time].b) + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return false; }
+  mutate(function () { var v = [null, null, null, null]; v[vi] = nv; S.cols.push({ d: ui.dur, v: v, rn: null, cs: null }); });
+  return true;
+}
+function applySpeech(cmds) {
+  var did = [], ok = true;
+  cmds.forEach(function (c) {
+    if (!ok) return;
+    if (c.t === 'voice') { ui.voice = c.v; syncUI(); did.push(VOICES[c.v].n); }
+    else if (c.t === 'dur') { ui.dur = c.d; ui.rest = false; syncUI(); did.push(DUR[c.d].name.toLowerCase()); }
+    else if (c.t === 'undo') { undo(); did.push('deshacer'); }
+    else if (c.t === 'rest') { ok = putNoteVoice(ui.voice, { r: 1 }); if (ok) did.push('silencio'); }
+    else if (c.t === 'note') {
+      var vi = ui.voice, idx = LET.indexOf(c.l), o = c.o;
+      if (o === null) {
+        var ld = lastDiatonic(vi), base = ld === null ? (vi < 2 ? 4 : vi === 2 ? 3 : 2) : null, best = 0, bd = 1e9, oo;
+        if (ld === null) o = base; else { for (oo = 0; oo <= 7; oo++) if (Math.abs(oo * 7 + idx - ld) < bd) { bd = Math.abs(oo * 7 + idx - ld); best = oo; } o = best; }
+      }
+      var d = o * 7 + idx, step = d - (VOICES[vi].clef === 'treble' ? 30 : 18), lim = VOICES[vi].clef === 'treble' ? [-8, 14] : [-9, 16];
+      if (step < lim[0] || step > lim[1]) { msg('Esa nota queda fuera del pentagrama de ' + VOICES[vi].n + ' (' + c.l.toUpperCase() + o + ').'); ok = false; return; }
+      var a = c.a === null ? keyAlts(S.key)[c.l] : c.a;
+      ok = putNoteVoice(vi, { l: c.l, o: o, a: a });
+      if (ok) did.push(c.l.toUpperCase() + o + (a === 1 ? '♯' : a === -1 ? '♭' : ''));
+    }
+  });
+  return did;
+}
+function handleSpeech(alts) {
+  var cmds = null, heard = '';
+  for (var i = 0; i < alts.length; i++) { var p = parseSpeech(alts[i]); if (p.length) { cmds = p; heard = alts[i]; break; } }
+  if (!cmds) { msg('Escuché «' + (alts[0] || '') + '», pero no reconocí una nota. Di, por ejemplo: «sol 4», «fa sostenido 3», «negra», «alto».'); return; }
+  msg(''); var did = applySpeech(cmds);
+  if (did.length && !$('msg').textContent) msg('Escuché «' + heard.trim() + '» → ' + did.join(', ') + '.', true);
+}
+function toggleMic() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { msg('Este navegador no permite dictado por voz. Usa Chrome (Android/PC) o Safari (iPad).'); return; }
+  if (MIC.on) { MIC.on = false; try { MIC.rec.stop(); } catch (e) { } $('bMic').classList.remove('on'); msg('Dictado desactivado.', true); return; }
+  var r = new SR(); MIC.rec = r; r.lang = 'es-CO'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 3;
+  r.onresult = function (e) {
+    for (var i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) {
+      var alts = []; for (var j = 0; j < e.results[i].length; j++) alts.push(e.results[i][j].transcript);
+      handleSpeech(alts);
+    }
+  };
+  r.onerror = function (e) {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { MIC.on = false; $('bMic').classList.remove('on'); msg('No hay permiso para usar el micrófono. Actívalo en los ajustes del navegador para esta página.'); }
+    else if (e.error === 'network') msg('El dictado necesita conexión a internet.');
+  };
+  r.onend = function () { if (MIC.on) { try { r.start(); } catch (e) { } } };
+  try { r.start(); MIC.on = true; $('bMic').classList.add('on'); msg('Escuchando… di la nota y la altura, por ejemplo «sol 4».', true); } catch (e) { msg('No se pudo activar el micrófono.'); }
+}
+
 /* ================= inicio ================= */
 buildStaticUI();
 (function board() {
@@ -1613,7 +1713,7 @@ try {
 } catch (e) { }
 refresh();
 if (location.hash.indexOf('#ej=') === 0) loadCode(location.hash);
-window.__lm3 = { penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks };
+window.__lm3 = { penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, parseSpeech: parseSpeech };
 })();
 
 </script>
