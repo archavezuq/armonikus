@@ -1290,6 +1290,7 @@ var VOICE_WORDS = { soprano: 0, alto: 1, tenor: 2, bajo: 3 };
 function parseSpeech(text) {
   var t = String(text).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/#/g, ' sostenido ').replace(/[,.;:!?¿¡"]/g, ' ');
   t = t.replace(/\b(do|re|mi|fa|sol|la|si)([0-9])\b/g, '$1 $2').replace(/\b(do|re|mi|fa|sol|la|si)(sostenido|bemol)\b/g, '$1 $2');
+  t = t.replace(/\b2([0-9])\b/g, 'do $1').replace(/\b(dos|do|dó)\s*(?=([0-9]|cero|uno|una|dos|tres|cuatro|cinco|seis|siete)\b)/g, 'do ').replace(/\b(me|mih)\b(?=\s*[0-9])/g, 'mi').replace(/\b(ce)\b(?=\s*[0-9])/g, 'si');
   var tk = t.split(/\s+/).filter(Boolean), out = [], i, n = tk.length;
   function numAt(j) { if (j >= n) return null; if (/^[0-9]$/.test(tk[j])) return +tk[j]; return NUM_WORDS.hasOwnProperty(tk[j]) ? NUM_WORDS[tk[j]] : null; }
   for (i = 0; i < n; i++) {
