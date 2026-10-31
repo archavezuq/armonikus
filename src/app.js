@@ -1087,7 +1087,7 @@ function syncUI() {
   });
   $('nKcM').min = S.pickup ? 1 : 2;
   $('sTime').value = S.time; $('nMeas').value = S.measures - (S.pickup ? 1 : 0); fillPick(); $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
-  $('iName').value = info.name; $('iGroup').value = info.group; $('iDate').value = info.date; $('sInst').value = info.inst || 'piano'; $('nBpm').value = info.bpm || 76;
+  $('iName').value = info.name; $('iGroup').value = info.group; $('iDate').value = info.date; if (!$('sInst').querySelector('option[value="' + info.inst + '"]')) info.inst = 'piano'; $('sInst').value = info.inst || 'piano'; $('nBpm').value = info.bpm || 76;
   Array.prototype.forEach.call(document.querySelectorAll('#bVoice button'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
   Array.prototype.forEach.call(document.querySelectorAll('#bDur button'), function (b) { b.classList.toggle('on', b.dataset.d === ui.dur); });
   $('bRest').classList.toggle('on', ui.rest);
@@ -1117,7 +1117,7 @@ function refresh() {
 function closePaletteIfStale() { /* la paleta se redibuja desde sus propias acciones */ }
 
 /* ================= reproducción ================= */
-var INSTS = [['piano', 'Piano'], ['organ', 'Órgano'], ['flute', 'Flauta'], ['strings', 'Cuerdas'], ['choir', 'Coro']];
+var INSTS = [['piano', 'Piano'], ['organ', 'Órgano'], ['flute', 'Flauta'], ['strings', 'Cuerdas']];
 var LEVEL = { piano: 0.4, organ: 1.2, flute: 0.42, strings: 1.45, choir: 0.85 };
 function noiseBuf(ctx) {
   if (ctx._nb) return ctx._nb;
@@ -1203,7 +1203,7 @@ var SF_URL = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/';
 var SF_INSTS = [['sf:acoustic_grand_piano', 'Piano'], ['sf:church_organ', 'Órgano de iglesia'], ['sf:string_ensemble_1', 'Cuerdas (conjunto)'], ['sf:violin', 'Violín'], ['sf:cello', 'Violonchelo'], ['sf:choir_aahs', 'Coro «aah»'], ['sf:flute', 'Flauta'], ['sf:oboe', 'Oboe'], ['sf:clarinet', 'Clarinete'], ['sf:bassoon', 'Fagot'], ['sf:french_horn', 'Corno francés'], ['sf:trumpet', 'Trompeta'], ['sf:trombone', 'Trombón'], ['sf:tuba', 'Tuba'], ['sf:brass_section', 'Sección de metales']];
 var ENS = { 'ens:woods': ['sf:flute', 'sf:oboe', 'sf:clarinet', 'sf:bassoon'], 'ens:brass': ['sf:trumpet', 'sf:french_horn', 'sf:trombone', 'sf:tuba'] };
 var ENS_INSTS = [['ens:woods', 'Cuarteto de maderas (flauta, oboe, clarinete, fagot)'], ['ens:brass', 'Cuarteto de metales (trompeta, corno, trombón, tuba)']];
-var SF_FALL = { 'sf:acoustic_grand_piano': 'piano', 'sf:church_organ': 'organ', 'sf:string_ensemble_1': 'strings', 'sf:violin': 'strings', 'sf:cello': 'strings', 'sf:choir_aahs': 'choir', 'sf:flute': 'flute', 'sf:oboe': 'flute', 'sf:clarinet': 'flute', 'sf:bassoon': 'flute', 'sf:french_horn': 'organ', 'sf:trumpet': 'organ', 'sf:trombone': 'organ', 'sf:tuba': 'organ', 'sf:brass_section': 'organ', 'ens:woods': 'flute', 'ens:brass': 'organ' };
+var SF_FALL = { 'sf:acoustic_grand_piano': 'piano', 'sf:church_organ': 'organ', 'sf:string_ensemble_1': 'strings', 'sf:violin': 'strings', 'sf:cello': 'strings', 'sf:choir_aahs': 'organ', 'sf:flute': 'flute', 'sf:oboe': 'flute', 'sf:clarinet': 'flute', 'sf:bassoon': 'flute', 'sf:french_horn': 'organ', 'sf:trumpet': 'organ', 'sf:trombone': 'organ', 'sf:tuba': 'organ', 'sf:brass_section': 'organ', 'ens:woods': 'flute', 'ens:brass': 'organ' };
 var SF_LEV = { 'sf:acoustic_grand_piano': 0.8, 'sf:church_organ': 0.55, 'sf:string_ensemble_1': 0.8, 'sf:violin': 0.9, 'sf:cello': 0.9, 'sf:choir_aahs': 1.1, 'sf:flute': 0.9, 'sf:oboe': 0.9, 'sf:clarinet': 0.9, 'sf:bassoon': 1, 'sf:french_horn': 1, 'sf:trumpet': 0.8, 'sf:trombone': 0.9, 'sf:tuba': 1, 'sf:brass_section': 0.8 };
 var SF_RAW = {}, SF_BUF = {};
 var NOTE_SF = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
