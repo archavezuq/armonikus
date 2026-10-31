@@ -151,7 +151,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v17</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v18</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>
@@ -276,6 +276,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
     <b>Cómo citar:</b> <span id="citeTxt">Chávez Becerra, A. (2026). <i>Armonikus: escritura a cuatro voces (SATB)</i> [Aplicación web]. https://archavezuq.github.io/armonikus/</span>
     <button id="bCite" type="button">Copiar cita</button>
     <div class="small">Desarrollado por Mtro. Andrés Chávez Becerra. Todos los derechos reservados. Pentagramas con <a href="https://www.vexflow.com" target="_blank" rel="noopener">VexFlow</a> (MIT).</div>
+  <div style="margin-top:6px;font-size:12px;color:#666">Sonidos «de muestras reales»: banco Musyng Kite (licencia CC BY-SA 3.0), distribuido por <a href="https://github.com/gleitz/midi-js-soundfonts" target="_blank" rel="noopener">midi-js-soundfonts</a>.</div>
   </footer>
 </div>
 <div id="palette" hidden></div>
@@ -393,7 +394,7 @@ function brPk(b) { var v = S.br && S.br[b]; return (v > 0 && v < TIMES[S.time].b
 function hasBr(b) { return !!(S.br && Object.prototype.hasOwnProperty.call(S.br, b)); }
 function mlenAt(k, mlen) { mlen = mlen || TIMES[S.time].b; if (k === 0 && S.pickup) return S.pickup; if (k > 0 && brPk(k - 1)) return brPk(k - 1); return mlen; }
 function brList() { return Object.keys(S.br || {}).map(Number).sort(function (a, b) { return a - b; }); }
-var CUR_K = 0, NM = {};
+var CUR_K = 0, NM = {}, LOADING = false;
 function partition(cols, mlen, pk) {
   if (pk === undefined) pk = S.pickup || 0;
   var ms = [[]], acc = 0, ok = true, bad = -1;
@@ -1326,8 +1327,9 @@ function buildStaticUI() {
   $('iName').addEventListener('input', function () { info.name = this.value; save(); });
   $('iGroup').addEventListener('input', function () { info.group = this.value; save(); });
   $('iDate').addEventListener('change', function () { info.date = this.value; save(); });
-  $('bPlay').addEventListener('click', togglePlay);
+  $('bPlay').addEventListener('click', function () { togglePlay(); });
   var si = $('sInst'); INSTS.forEach(function (i) { var o = document.createElement('option'); o.value = i[0]; o.textContent = i[1]; si.appendChild(o); });
+  var og = document.createElement('optgroup'); og.label = 'Muestras reales (necesitan internet)'; SF_INSTS.forEach(function (i) { var o = document.createElement('option'); o.value = i[0]; o.textContent = i[1] + ' ✦'; og.appendChild(o); }); si.appendChild(og);
   si.addEventListener('change', function () { info.inst = this.value; save(); if (playing) { stopPlay(); togglePlay(); } });
   $('nBpm').addEventListener('change', function () { var n = Math.max(40, Math.min(160, parseInt(this.value, 10) || 76)); info.bpm = n; this.value = n; save(); });
   $('bCheck').addEventListener('click', runChecks);
@@ -1484,15 +1486,56 @@ var SYN = {
     src.start(t); src.stop(end + rel * 3 + 0.1);
   }
 };
+/* ---- sonidos de muestras reales (Musyng Kite, vía midi-js-soundfonts; se descargan al elegirlos) ---- */
+var SF_URL = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/';
+var SF_INSTS = [['sf:acoustic_grand_piano', 'Piano'], ['sf:church_organ', 'Órgano de iglesia'], ['sf:string_ensemble_1', 'Cuerdas (conjunto)'], ['sf:violin', 'Violín'], ['sf:cello', 'Violonchelo'], ['sf:choir_aahs', 'Coro «aah»'], ['sf:voice_oohs', 'Coro «ooh»'], ['sf:flute', 'Flauta'], ['sf:oboe', 'Oboe'], ['sf:clarinet', 'Clarinete']];
+var SF_FALL = { 'sf:acoustic_grand_piano': 'piano', 'sf:church_organ': 'organ', 'sf:string_ensemble_1': 'strings', 'sf:violin': 'strings', 'sf:cello': 'strings', 'sf:choir_aahs': 'choir', 'sf:voice_oohs': 'choir', 'sf:flute': 'flute', 'sf:oboe': 'flute', 'sf:clarinet': 'flute' };
+var SF_LEV = { 'sf:acoustic_grand_piano': 0.8, 'sf:church_organ': 0.55, 'sf:string_ensemble_1': 0.8, 'sf:violin': 0.9, 'sf:cello': 0.9, 'sf:choir_aahs': 1.1, 'sf:voice_oohs': 1.1, 'sf:flute': 0.9, 'sf:oboe': 0.9, 'sf:clarinet': 0.9 };
+var SF_RAW = {}, SF_BUF = {};
+var NOTE_SF = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+function sfName(m) { return NOTE_SF[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1); }
+function sfLoadRaw(inst) {
+  if (SF_RAW[inst]) return SF_RAW[inst];
+  var nm = inst.slice(3);
+  return (SF_RAW[inst] = fetch(SF_URL + nm + '-mp3.js').then(function (r) { if (!r.ok) throw new Error('http'); return r.text(); }).then(function (t) {
+    var mm = /Soundfont\.[A-Za-z0-9_]+\s*=\s*\{/.exec(t); if (!mm) throw new Error('fmt');
+    var a = mm.index + mm[0].length - 1, b = t.lastIndexOf('}'), js = t.slice(a, b + 1).replace(/,\s*\}$/, '}');
+    return JSON.parse(js);
+  }).catch(function (e) { delete SF_RAW[inst]; throw e; }));
+}
+function sfDecode(ctx, uri) {
+  var bin = atob(uri.slice(uri.indexOf(',') + 1)), u = new Uint8Array(bin.length), i; for (i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new Promise(function (res, rej) { var p = ctx.decodeAudioData(u.buffer, res, rej); if (p && p.then) p.then(res, rej); });
+}
+function sfPrepare(ctx, inst, midis) {
+  return sfLoadRaw(inst).then(function (raw) {
+    SF_BUF[inst] = SF_BUF[inst] || {};
+    var jobs = [];
+    midis.forEach(function (m) {
+      var n = sfName(m); if (SF_BUF[inst][n] || !raw[n]) return;
+      jobs.push(sfDecode(ctx, raw[n]).then(function (b) { SF_BUF[inst][n] = b; }));
+    });
+    return Promise.all(jobs);
+  });
+}
+function playSample(ctx, out, inst, m, t, dur) {
+  var bufs = SF_BUF[inst] || {}, b = bufs[sfName(m)]; if (!b) return;
+  var src = ctx.createBufferSource(), g = ctx.createGain(), lv = 0.5 * (SF_LEV[inst] || 1), piano = inst === 'sf:acoustic_grand_piano';
+  var rel = piano ? 0.5 : 0.35, end = t + dur;
+  src.buffer = b; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(lv, t + (piano ? 0.004 : 0.03));
+  if (piano) g.gain.setTargetAtTime(0.0001, end, rel / 3); else { g.gain.setValueAtTime(lv, Math.max(t + 0.04, end - 0.02)); g.gain.linearRampToValueAtTime(0.0001, end + rel); }
+  src.connect(g); g.connect(out); src.start(t); src.stop(end + rel + 0.6);
+}
 function playNote(ctx, out, inst, m, t, dur) {
+  if (inst.indexOf('sf:') === 0) { playSample(ctx, out, inst, m, t, dur); return; }
   var f = 440 * Math.pow(2, (m - 69) / 12);
   SYN[inst](ctx, out, f, t, dur, 0.16 * (LEVEL[inst] || 1), m);
 }
-function togglePlay() {
+function togglePlay(reuse) {
   if (playing) { stopPlay(); return; }
   if (!S.cols.length) { msg('No hay nada que escuchar todavía.'); return; }
   var AC = window.AudioContext || window.webkitAudioContext; if (!AC) { msg('Tu navegador no puede reproducir audio.'); return; }
-  var ctx = new AC(); if (ctx.resume) ctx.resume();
+  var ctx = reuse || new AC(); if (ctx.resume) ctx.resume();
   var master = ctx.createGain(), comp = ctx.createDynamicsCompressor(); master.gain.value = 0.9; master.connect(comp); comp.connect(ctx.destination);
   var spq = 60 / (info.bpm || 76), inst = info.inst || 'piano', ev = [], tt = 0, timers = [];
   S.cols.forEach(function (c, i) {
@@ -1508,6 +1551,17 @@ function togglePlay() {
     ev.push({ t: tt, hl: i });
     tt += dur;
   });
+  if (inst.indexOf('sf:') === 0 && !playing) {
+    var need = {}; ev.forEach(function (e) { if (e.m != null) need[e.m] = 1; });
+    var ms = Object.keys(need).map(Number), have = SF_BUF[inst] && ms.every(function (m) { return SF_BUF[inst][sfName(m)]; });
+    if (!have) {
+      if (LOADING) return;
+      LOADING = true; msg('Cargando el sonido «' + $('sInst').selectedOptions[0].textContent + '»… (la primera vez tarda unos segundos)', true); $('bPlay').textContent = 'Cargando…';
+      sfPrepare(ctx, inst, ms).then(function () { LOADING = false; msg('', true); $('bPlay').textContent = '▶ Escuchar'; togglePlay(ctx); },
+        function () { LOADING = false; try { ctx.close(); } catch (e) { } info.inst = SF_FALL[inst] || 'piano'; $('sInst').value = info.inst; save(); $('bPlay').textContent = '▶ Escuchar'; msg('No se pudo descargar el sonido (¿sin internet?). Cambié al sonido básico «' + $('sInst').selectedOptions[0].textContent + '».'); });
+      return;
+    }
+  }
   var start = ctx.currentTime + 0.2, ei = 0, st = { ctx: ctx, timers: timers, pump: null };
   function pump() {
     var now = ctx.currentTime;
