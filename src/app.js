@@ -3,6 +3,7 @@
 'use strict';
 var VF = (window.Vex && window.Vex.Flow) ? window.Vex.Flow : window.VexFlow;
 if (!VF) { document.getElementById('app').insertAdjacentHTML('afterbegin', '<p style="color:#b00">No se pudo cargar la librería de notación.</p>'); return; }
+/*I18N*/
 
 /* ================= datos ================= */
 var LET = ['c', 'd', 'e', 'f', 'g', 'a', 'b'];
@@ -197,7 +198,7 @@ function exAdd() {
 }
 function exDel() {
   exStash(); if (EX.list.length < 2) return;
-  if (!confirm('¿Quitar la hoja ' + (EX.i + 1) + '?')) return;
+  if (!confirm(T('¿Quitar la hoja ' + (EX.i + 1) + '?'))) return;
   EX.list.splice(EX.i, 1); var j = Math.min(EX.i, EX.list.length - 1); EX.i = -1; var o = EX.list[j]; EX.i = j; S = o.S; hist = o.hist; redo = o.redo; refresh();
 }
 function exSet(list, i) {
@@ -215,7 +216,7 @@ function renderTabs() {
   a.addEventListener('click', exAdd); box.appendChild(a);
   if (L.length > 1) { var d = document.createElement('button'); d.textContent = '✕ Quitar esta hoja'; d.addEventListener('click', exDel); box.appendChild(d); }
 }
-function msg(t, ok) { var m = $('msg'); m.textContent = t || ''; m.className = ok ? 'ok' : ''; }
+function msg(t, ok) { var m = $('msg'); m.textContent = T(t) || ''; m.className = ok ? 'ok' : ''; }
 
 /* ================= dibujo ================= */
 function styleNote(n, o, vi) { if (o.color) { var c = VOICES[vi].c; n.setStyle({ fillStyle: c, strokeStyle: c }); } }
@@ -375,13 +376,13 @@ function render(host, o) {
   return L;
 }
 function drawHeader(svg) {
-  var title = S.etitle || 'Escritura a cuatro voces';
+  var title = S.etitle || T('Escritura a cuatro voces');
   svgText(svg, LEFT, 30, title, 20, { 'font-weight': '700' });
-  svgText(svg, LEFT, 52, 'Lenguaje Musical III · Instituto de Bellas Artes · Universidad del Quindío', 11.5, { fill: '#555' });
+  svgText(svg, LEFT, 52, T('Lenguaje Musical III · Instituto de Bellas Artes · Universidad del Quindío'), 11.5, { fill: '#555' });
   var d = info.date ? info.date.split('-').reverse().join('/') : '';
-  svgText(svg, LEFT, 76, 'Nombre: ' + (info.name || ''), 14);
-  svgText(svg, 560, 76, 'Grupo: ' + (info.group || ''), 14);
-  svgText(svg, 720, 76, 'Fecha: ' + d, 14);
+  svgText(svg, LEFT, 76, T('Nombre') + ': ' + (info.name || ''), 14);
+  svgText(svg, 560, 76, T('Grupo') + ': ' + (info.group || ''), 14);
+  svgText(svg, 720, 76, T('Fecha') + ': ' + d, 14);
 }
 function csRows(sys) {
   var rows = {}, end = [-1e9, -1e9];
@@ -987,6 +988,12 @@ function buildStaticUI() {
       if (MIC.on) { toggleMic(); toggleMic(); }
     });
   })();
+  (function () {
+    var sv = 'es'; try { sv = localStorage.getItem('armonikus_lang') || 'es'; } catch (e) { }
+    var q = /[?&#]lang=(en|es)\b/.exec(location.href); if (q) sv = q[1];
+    document.querySelectorAll('#langSw button').forEach(function (b) { b.addEventListener('click', function () { setLang(b.dataset.l, true); }); });
+    i18nStart(); if (sv === 'en') setLang('en', false); else document.querySelectorAll('#langSw button').forEach(function (b) { b.classList.toggle('on', b.dataset.l === 'es'); });
+  })();
   $('bUndo').addEventListener('click', undo); $('bRedo').addEventListener('click', redoIt);
   $('sKey').addEventListener('change', function () { var v = this.value; mutate(function () { S.key = v; }); });
   $('bKcAdd').addEventListener('click', function () {
@@ -1108,6 +1115,15 @@ function fit() {
   st.style.width = W + 'px'; st.style.height = layout.H + 'px';
   st.style.transform = 'scale(' + scale + ')';
   vp.style.height = (layout.H * scale + 2) + 'px';
+}
+function setLang(l, user) {
+  LANG = l === 'en' ? 'en' : 'es';
+  try { localStorage.setItem('armonikus_lang', LANG); } catch (e) { }
+  document.querySelectorAll('#langSw button').forEach(function (b) { b.classList.toggle('on', b.dataset.l === LANG); });
+  i18nApply();
+  if (user) { var ml = $('sMicLang'); if (ml) { ml.value = LANG === 'en' ? 'en-US' : 'es-CO'; MIC.lang = ml.value; try { localStorage.setItem('armonikus_mic_lang', ml.value); } catch (e) { } if (MIC.on) { toggleMic(); toggleMic(); } } }
+  if (layout) refresh();
+  msg('');
 }
 function refresh() {
   closePaletteIfStale();
@@ -1311,7 +1327,7 @@ function runChecks() {
   var kOf = colKeys(part);
   var EFF = new Map(); cols.forEach(function (c, i) { EFF.set(c, [0, 1, 2, 3].map(function (v) { return effEntry(cols, i, v); })); });
   function np(c, vi) { var e = EFF.get(c)[vi]; return e && !e.r ? e : null; }
-  function add(i, t) { out.push({ ci: i, t: where[i] + ': ' + t }); }
+  function add(i, t) { out.push({ ci: i, t: T(where[i]) + ': ' + T(t) }); }
   var names = VOICES.map(function (v) { return v.n; });
   cols.forEach(function (c, i) {
     var all = [0, 1, 2, 3].every(function (v) { return np(c, v); });
@@ -1366,7 +1382,7 @@ function buildExport() {
   try {
     for (j = 0; j < L; j++) {
       S = EX.list[j].S; var h = document.createElement('div');
-      render(h, { color: false, labels: true, header: j === 0, sub: j === 0 ? '' : 'Hoja ' + (j + 1) + (S.etitle ? ' · ' + S.etitle : ''), last: j === L - 1 });
+      render(h, { color: false, labels: true, header: j === 0, sub: j === 0 ? '' : T('Hoja ' + (j + 1)) + (S.etitle ? ' · ' + S.etitle : ''), last: j === L - 1 });
       parts.push(h.querySelector('svg'));
     }
   } finally { S = keep; }
@@ -1481,7 +1497,7 @@ function genCode() {
   $('tOut').value = packCode(o); msg('Código generado.', true);
 }
 function newExercise() {
-  if (S.cols.length && !confirm('¿Reiniciar este ejercicio? Se borrará lo que hay en pantalla (puedes recuperarlo con «Deshacer»).')) return;
+  if (S.cols.length && !confirm(T('¿Reiniciar este ejercicio? Se borrará lo que hay en pantalla (puedes recuperarlo con «Deshacer»).'))) return;
   var ns = newState(); ns.lines = S.lines;
   pushHist(); S = ns; ui.voice = 0; ui.mode = 'write'; ui.own = false; $('cOwn').checked = false;
   $('iCode').value = '';
@@ -1670,7 +1686,7 @@ buildStaticUI();
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
   $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
   $('bdEr').addEventListener('click', function () { tool = 'eraser'; $('bdEr').classList.add('on'); $('bdPen').classList.remove('on'); });
-  $('bdClr').addEventListener('click', function () { if (confirm('¿Borrar toda la pizarra?')) { cx.clearRect(0, 0, cv.width, cv.height); save(); } });
+  $('bdClr').addEventListener('click', function () { if (confirm(T('¿Borrar toda la pizarra?'))) { cx.clearRect(0, 0, cv.width, cv.height); save(); } });
   $('bdPen').classList.add('on');
   $('board').addEventListener('toggle', function () { if ($('board').open) { size(); try { var d = localStorage.getItem(KEY); if (d) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, cv.clientWidth, cv.clientHeight); }; im.src = d; } } catch (e) { } } });
   window.addEventListener('resize', function () { if ($('board').open && !drawing) size(); });
@@ -1682,5 +1698,5 @@ try {
 } catch (e) { }
 refresh();
 if (location.hash.indexOf('#ej=') === 0) loadCode(location.hash);
-window.__lm3 = { penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, parseSpeech: parseSpeech };
+window.__lm3 = { T: T, setLang: setLang, penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, parseSpeech: parseSpeech };
 })();
