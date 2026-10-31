@@ -12,6 +12,7 @@ Es un solo archivo HTML autocontenido: `dist/Editor_Escritura_4_Voces.html`. La 
 - Modo lápiz (iPad/tableta): dibuja la nota a mano (cabeza, plica, corchete, puntillo) y la app reconoce la figura (redonda, blanca, negra, corchea, semicorchea y puntillos).
 - Mapa de progresiones armónicas (mayor y menor, con cadencia plagal y rota) al final de la página.
 - Ritmo independiente por voz (p. ej., blanca en la soprano sobre negras en las demás).
+- Ligadura de prolongación (herramienta «Ligadura»): une una nota con la siguiente de la misma altura, también de un compás al siguiente; suena como una sola nota y viaja en el código del docente.
 - Doble barra en el compás que elijas, con nueva tonalidad y anacrusa propias para el ejercicio que empieza después (varios por hoja), y varias hojas descargables juntas en una sola imagen.
 - Cambios de tonalidad en cualquier compás (varios por ejercicio): la armadura cambia desde ese compás, con becuadros que cancelan la anterior; las notas, los grados y el revisor usan la nueva tonalidad. También viajan en el código del docente.
 - Anacrusa (antecompás) opcional al inicio, de corchea a blanca con puntillo.
