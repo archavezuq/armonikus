@@ -151,7 +151,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v19</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v20</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>
@@ -1329,7 +1329,8 @@ function buildStaticUI() {
   $('iDate').addEventListener('change', function () { info.date = this.value; save(); });
   $('bPlay').addEventListener('click', function () { togglePlay(); });
   var si = $('sInst'); INSTS.forEach(function (i) { var o = document.createElement('option'); o.value = i[0]; o.textContent = i[1]; si.appendChild(o); });
-  var og = document.createElement('optgroup'); og.label = 'Muestras reales (necesitan internet)'; SF_INSTS.forEach(function (i) { var o = document.createElement('option'); o.value = i[0]; o.textContent = i[1] + ' ✦'; og.appendChild(o); }); si.appendChild(og);
+  var og0 = document.createElement('optgroup'); og0.label = 'Conjuntos de muestras reales (necesitan internet)'; ENS_INSTS.forEach(function (i) { var o = document.createElement('option'); o.value = i[0]; o.textContent = i[1] + ' ✦'; og0.appendChild(o); }); si.appendChild(og0);
+  var og = document.createElement('optgroup'); og.label = 'Instrumentos de muestras reales (necesitan internet)'; SF_INSTS.forEach(function (i) { var o = document.createElement('option'); o.value = i[0]; o.textContent = i[1] + ' ✦'; og.appendChild(o); }); si.appendChild(og);
   si.addEventListener('change', function () { info.inst = this.value; save(); if (playing) { stopPlay(); togglePlay(); } });
   $('nBpm').addEventListener('change', function () { var n = Math.max(40, Math.min(160, parseInt(this.value, 10) || 76)); info.bpm = n; this.value = n; save(); });
   $('bCheck').addEventListener('click', runChecks);
@@ -1488,9 +1489,11 @@ var SYN = {
 };
 /* ---- sonidos de muestras reales (Musyng Kite, vía midi-js-soundfonts; se descargan al elegirlos) ---- */
 var SF_URL = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/';
-var SF_INSTS = [['sf:acoustic_grand_piano', 'Piano'], ['sf:church_organ', 'Órgano de iglesia'], ['sf:string_ensemble_1', 'Cuerdas (conjunto)'], ['sf:violin', 'Violín'], ['sf:cello', 'Violonchelo'], ['sf:choir_aahs', 'Coro «aah»'], ['sf:flute', 'Flauta'], ['sf:oboe', 'Oboe'], ['sf:clarinet', 'Clarinete']];
-var SF_FALL = { 'sf:acoustic_grand_piano': 'piano', 'sf:church_organ': 'organ', 'sf:string_ensemble_1': 'strings', 'sf:violin': 'strings', 'sf:cello': 'strings', 'sf:choir_aahs': 'choir', 'sf:flute': 'flute', 'sf:oboe': 'flute', 'sf:clarinet': 'flute' };
-var SF_LEV = { 'sf:acoustic_grand_piano': 0.8, 'sf:church_organ': 0.55, 'sf:string_ensemble_1': 0.8, 'sf:violin': 0.9, 'sf:cello': 0.9, 'sf:choir_aahs': 1.1, 'sf:flute': 0.9, 'sf:oboe': 0.9, 'sf:clarinet': 0.9 };
+var SF_INSTS = [['sf:acoustic_grand_piano', 'Piano'], ['sf:church_organ', 'Órgano de iglesia'], ['sf:string_ensemble_1', 'Cuerdas (conjunto)'], ['sf:violin', 'Violín'], ['sf:cello', 'Violonchelo'], ['sf:choir_aahs', 'Coro «aah»'], ['sf:flute', 'Flauta'], ['sf:oboe', 'Oboe'], ['sf:clarinet', 'Clarinete'], ['sf:bassoon', 'Fagot'], ['sf:french_horn', 'Corno francés'], ['sf:trumpet', 'Trompeta'], ['sf:trombone', 'Trombón'], ['sf:tuba', 'Tuba'], ['sf:brass_section', 'Sección de metales']];
+var ENS = { 'ens:woods': ['sf:flute', 'sf:oboe', 'sf:clarinet', 'sf:bassoon'], 'ens:brass': ['sf:trumpet', 'sf:french_horn', 'sf:trombone', 'sf:tuba'] };
+var ENS_INSTS = [['ens:woods', 'Cuarteto de maderas (flauta, oboe, clarinete, fagot)'], ['ens:brass', 'Cuarteto de metales (trompeta, corno, trombón, tuba)']];
+var SF_FALL = { 'sf:acoustic_grand_piano': 'piano', 'sf:church_organ': 'organ', 'sf:string_ensemble_1': 'strings', 'sf:violin': 'strings', 'sf:cello': 'strings', 'sf:choir_aahs': 'choir', 'sf:flute': 'flute', 'sf:oboe': 'flute', 'sf:clarinet': 'flute', 'sf:bassoon': 'flute', 'sf:french_horn': 'organ', 'sf:trumpet': 'organ', 'sf:trombone': 'organ', 'sf:tuba': 'organ', 'sf:brass_section': 'organ', 'ens:woods': 'flute', 'ens:brass': 'organ' };
+var SF_LEV = { 'sf:acoustic_grand_piano': 0.8, 'sf:church_organ': 0.55, 'sf:string_ensemble_1': 0.8, 'sf:violin': 0.9, 'sf:cello': 0.9, 'sf:choir_aahs': 1.1, 'sf:flute': 0.9, 'sf:oboe': 0.9, 'sf:clarinet': 0.9, 'sf:bassoon': 1, 'sf:french_horn': 1, 'sf:trumpet': 0.8, 'sf:trombone': 0.9, 'sf:tuba': 1, 'sf:brass_section': 0.8 };
 var SF_RAW = {}, SF_BUF = {};
 var NOTE_SF = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 function sfName(m) { return NOTE_SF[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1); }
@@ -1546,18 +1549,19 @@ function togglePlay(reuse) {
       if (prev && prev.t) return;
       var dd = e.d ? DUR[e.d].b * spq : dur, cur = e, j = nextStart(i, vi);
       while (cur.t && j >= 0) { var nx = S.cols[j].v[vi]; dd += (nx.d ? DUR[nx.d].b : DUR[S.cols[j].d].b) * spq; cur = nx; j = nextStart(j, vi); }
-      ev.push({ t: tt, dur: dd, m: midi(e) });
+      ev.push({ t: tt, dur: dd, m: midi(e), vi: vi });
     });
     ev.push({ t: tt, hl: i });
     tt += dur;
   });
-  if (inst.indexOf('sf:') === 0 && !playing) {
-    var need = {}; ev.forEach(function (e) { if (e.m != null) need[e.m] = 1; });
-    var ms = Object.keys(need).map(Number), have = SF_BUF[inst] && ms.every(function (m) { return SF_BUF[inst][sfName(m)]; });
+  function instOf(vi) { return ENS[inst] ? ENS[inst][vi] : inst; }
+  if ((inst.indexOf('sf:') === 0 || ENS[inst]) && !playing) {
+    var needBy = {}; ev.forEach(function (e) { if (e.m != null) { var ii = instOf(e.vi); (needBy[ii] = needBy[ii] || {})[e.m] = 1; } });
+    var have = Object.keys(needBy).every(function (ii) { return SF_BUF[ii] && Object.keys(needBy[ii]).every(function (m) { return SF_BUF[ii][sfName(+m)]; }); });
     if (!have) {
       if (LOADING) return;
       LOADING = true; msg('Cargando el sonido «' + $('sInst').selectedOptions[0].textContent + '»… (la primera vez tarda unos segundos)', true); $('bPlay').textContent = 'Cargando…';
-      sfPrepare(ctx, inst, ms).then(function () { LOADING = false; msg('', true); $('bPlay').textContent = '▶ Escuchar'; togglePlay(ctx); },
+      Promise.all(Object.keys(needBy).map(function (ii) { return sfPrepare(ctx, ii, Object.keys(needBy[ii]).map(Number)); })).then(function () { LOADING = false; msg('', true); $('bPlay').textContent = '▶ Escuchar'; togglePlay(ctx); },
         function () { LOADING = false; try { ctx.close(); } catch (e) { } info.inst = SF_FALL[inst] || 'piano'; $('sInst').value = info.inst; save(); $('bPlay').textContent = '▶ Escuchar'; msg('No se pudo descargar el sonido (¿sin internet?). Cambié al sonido básico «' + $('sInst').selectedOptions[0].textContent + '».'); });
       return;
     }
@@ -1568,7 +1572,7 @@ function togglePlay(reuse) {
     while (ei < ev.length && start + ev[ei].t < now + 0.8) {
       var e = ev[ei++];
       if (e.hl != null) { (function (h, ms) { timers.push(setTimeout(function () { highlight(h); }, ms)); })(e.hl, Math.max(0, (start + e.t - ctx.currentTime) * 1000)); }
-      else playNote(ctx, master, inst, e.m, start + e.t, e.dur);
+      else playNote(ctx, master, instOf(e.vi), e.m, start + e.t, e.dur);
     }
     if (ei < ev.length) st.pump = setTimeout(pump, 150);
   }
