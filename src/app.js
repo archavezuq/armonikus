@@ -739,12 +739,16 @@ function recognizePen(strokes) {
   }
   var nFlag = 0;
   if (stem) {
-    var up = stem.b.cy < hb.cy, endY = up ? stem.b.y0 : stem.b.y1;
+    var up = stem.b.cy < hb.cy, endY = up ? stem.b.y0 : stem.b.y1, att = [];
     flags.forEach(function (f) {
-      var ny = up ? f.b.y0 : f.b.y1, fy = up ? f.b.y1 : f.b.y0;
+      var ny = up ? f.b.y0 : f.b.y1;
       var okY = Math.abs(ny - endY) < 4.5 * S || (f.b.y0 < endY + 3 * S && f.b.y1 > endY - 3 * S);
-      if (okY && f.b.x1 > stem.b.cx - 2.5 * S && f.b.x0 < stem.b.cx + 4.5 * S) nFlag += (f.rev >= 3 && f.L > 4 * S) ? 2 : 1;
+      if (!(okY && f.b.x1 > stem.b.cx - 2.5 * S && f.b.x0 < stem.b.cx + 4.5 * S)) return;
+      var e1 = f.pts[0], e2 = f.pts[f.pts.length - 1], en = Math.abs(e1.y - endY) <= Math.abs(e2.y - endY) ? e1 : e2;
+      att.push(en.y);
     });
+    att.sort(function (p, q) { return p - q; });
+    for (var ai = 0; ai < att.length; ai++) if (ai === 0 || Math.abs(att[ai] - att[ai - 1]) >= 0.3 * S) nFlag++;
   }
   nFlag += extra;
   var dot = dots.some(function (p) { return p.b.cx > hb.x1 - 0.4 * S && p.b.cx < hb.x1 + 3.5 * S && Math.abs(p.b.cy - hb.cy) < 1.6 * S; });
