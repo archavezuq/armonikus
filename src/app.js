@@ -1195,9 +1195,9 @@ var SYN = {
 };
 /* ---- sonidos de muestras reales (Musyng Kite, vía midi-js-soundfonts; se descargan al elegirlos) ---- */
 var SF_URL = 'https://gleitz.github.io/midi-js-soundfonts/MusyngKite/';
-var SF_INSTS = [['sf:acoustic_grand_piano', 'Piano'], ['sf:church_organ', 'Órgano de iglesia'], ['sf:string_ensemble_1', 'Cuerdas (conjunto)'], ['sf:violin', 'Violín'], ['sf:cello', 'Violonchelo'], ['sf:choir_aahs', 'Coro «aah»'], ['sf:voice_oohs', 'Coro «ooh»'], ['sf:flute', 'Flauta'], ['sf:oboe', 'Oboe'], ['sf:clarinet', 'Clarinete']];
-var SF_FALL = { 'sf:acoustic_grand_piano': 'piano', 'sf:church_organ': 'organ', 'sf:string_ensemble_1': 'strings', 'sf:violin': 'strings', 'sf:cello': 'strings', 'sf:choir_aahs': 'choir', 'sf:voice_oohs': 'choir', 'sf:flute': 'flute', 'sf:oboe': 'flute', 'sf:clarinet': 'flute' };
-var SF_LEV = { 'sf:acoustic_grand_piano': 0.8, 'sf:church_organ': 0.55, 'sf:string_ensemble_1': 0.8, 'sf:violin': 0.9, 'sf:cello': 0.9, 'sf:choir_aahs': 1.1, 'sf:voice_oohs': 1.1, 'sf:flute': 0.9, 'sf:oboe': 0.9, 'sf:clarinet': 0.9 };
+var SF_INSTS = [['sf:acoustic_grand_piano', 'Piano'], ['sf:church_organ', 'Órgano de iglesia'], ['sf:string_ensemble_1', 'Cuerdas (conjunto)'], ['sf:violin', 'Violín'], ['sf:cello', 'Violonchelo'], ['sf:choir_aahs', 'Coro «aah»'], ['sf:flute', 'Flauta'], ['sf:oboe', 'Oboe'], ['sf:clarinet', 'Clarinete']];
+var SF_FALL = { 'sf:acoustic_grand_piano': 'piano', 'sf:church_organ': 'organ', 'sf:string_ensemble_1': 'strings', 'sf:violin': 'strings', 'sf:cello': 'strings', 'sf:choir_aahs': 'choir', 'sf:flute': 'flute', 'sf:oboe': 'flute', 'sf:clarinet': 'flute' };
+var SF_LEV = { 'sf:acoustic_grand_piano': 0.8, 'sf:church_organ': 0.55, 'sf:string_ensemble_1': 0.8, 'sf:violin': 0.9, 'sf:cello': 0.9, 'sf:choir_aahs': 1.1, 'sf:flute': 0.9, 'sf:oboe': 0.9, 'sf:clarinet': 0.9 };
 var SF_RAW = {}, SF_BUF = {};
 var NOTE_SF = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 function sfName(m) { return NOTE_SF[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1); }
