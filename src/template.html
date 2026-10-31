@@ -43,6 +43,7 @@
       <label class="grp"><span class="t">N.º de compases</span><input type="number" id="nMeas" min="1" max="16" value="4"></label>
       <label class="grp"><span class="t">Compases por sistema</span><select id="sPer"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
       <div class="grp" id="gKc"><span class="t">Cambio de tonalidad</span><div class="b"><label class="chk" title="Desde este compás (el número que se ve en pantalla) cambia la armadura">Desde el compás <input type="number" id="nKcM" min="2" max="16" value="2" style="width:56px"></label><select id="sKcK" title="Nueva tonalidad"></select><button id="bKcAdd" title="Añadir el cambio de tonalidad">Añadir</button></div><div id="kcList" class="kcl"></div></div>
+      <div class="grp" id="gBr"><span class="t">Doble barra y nuevo ejercicio (en esta hoja)</span><div class="b"><label class="chk" title="La doble barra va al final de este compás (el número que se ve en pantalla)">Después del compás <input type="number" id="nBrM" min="1" max="16" value="2" style="width:56px"></label><select id="sBrK" title="Tonalidad del ejercicio que empieza después de la doble barra"></select><select id="sBrP" title="Anacrusa del ejercicio que empieza después de la doble barra"><option value="0">Sin anacrusa</option></select><button id="bBrAdd" title="Pone la doble barra y, si lo eliges, cambia la tonalidad y empieza con anacrusa">Añadir</button></div><div id="brList" class="kcl"></div></div>
       <label class="chk"><input type="checkbox" id="cLines" checked> Líneas en grados mayores (IV, V…)</label>
     </div>
     <div class="row">
@@ -69,7 +70,7 @@
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v15</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v16</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>

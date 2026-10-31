@@ -124,6 +124,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
       <label class="grp"><span class="t">N.º de compases</span><input type="number" id="nMeas" min="1" max="16" value="4"></label>
       <label class="grp"><span class="t">Compases por sistema</span><select id="sPer"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
       <div class="grp" id="gKc"><span class="t">Cambio de tonalidad</span><div class="b"><label class="chk" title="Desde este compás (el número que se ve en pantalla) cambia la armadura">Desde el compás <input type="number" id="nKcM" min="2" max="16" value="2" style="width:56px"></label><select id="sKcK" title="Nueva tonalidad"></select><button id="bKcAdd" title="Añadir el cambio de tonalidad">Añadir</button></div><div id="kcList" class="kcl"></div></div>
+      <div class="grp" id="gBr"><span class="t">Doble barra y nuevo ejercicio (en esta hoja)</span><div class="b"><label class="chk" title="La doble barra va al final de este compás (el número que se ve en pantalla)">Después del compás <input type="number" id="nBrM" min="1" max="16" value="2" style="width:56px"></label><select id="sBrK" title="Tonalidad del ejercicio que empieza después de la doble barra"></select><select id="sBrP" title="Anacrusa del ejercicio que empieza después de la doble barra"><option value="0">Sin anacrusa</option></select><button id="bBrAdd" title="Pone la doble barra y, si lo eliges, cambia la tonalidad y empieza con anacrusa">Añadir</button></div><div id="brList" class="kcl"></div></div>
       <label class="chk"><input type="checkbox" id="cLines" checked> Líneas en grados mayores (IV, V…)</label>
     </div>
     <div class="row">
@@ -150,7 +151,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v15</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v16</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>
@@ -355,7 +356,7 @@ var EX = { list: [], i: 0 };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
 function newState() {
-  return { etitle: '', key: 'C', kc: {}, time: '4/4', measures: 4, pickup: 0, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
+  return { etitle: '', key: 'C', kc: {}, time: '4/4', measures: 4, pickup: 0, br: {}, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function $(id) { return document.getElementById(id); }
@@ -387,11 +388,17 @@ function vfKey(p, alts) {
   else if (alts[p.l] !== 0) s += 'n';
   return s + '/' + p.o;
 }
+/* doble barra elegida: S.br = { índice del compás (desde 0) que termina en doble barra : anacrusa (en negras) del compás siguiente, 0 = sin anacrusa } */
+function brPk(b) { var v = S.br && S.br[b]; return (v > 0 && v < TIMES[S.time].b) ? v : 0; }
+function hasBr(b) { return !!(S.br && Object.prototype.hasOwnProperty.call(S.br, b)); }
+function mlenAt(k, mlen) { mlen = mlen || TIMES[S.time].b; if (k === 0 && S.pickup) return S.pickup; if (k > 0 && brPk(k - 1)) return brPk(k - 1); return mlen; }
+function brList() { return Object.keys(S.br || {}).map(Number).sort(function (a, b) { return a - b; }); }
+var CUR_K = 0;
 function partition(cols, mlen, pk) {
   if (pk === undefined) pk = S.pickup || 0;
   var ms = [[]], acc = 0, ok = true, bad = -1;
   cols.forEach(function (c, i) {
-    var b = DUR[c.d].b, ml = (ms.length === 1 && pk) ? pk : mlen;
+    var b = DUR[c.d].b, ml = (ms.length === 1 && pk) ? pk : (ms.length > 1 && brPk(ms.length - 2)) ? brPk(ms.length - 2) : mlen;
     if (acc + b > ml + EPS) { ok = false; if (bad < 0) bad = i; }
     ms[ms.length - 1].push(i); acc += b;
     if (Math.abs(acc - ml) < EPS || acc > ml) { ms.push([]); acc = 0; }
@@ -454,6 +461,7 @@ function fillPick() {
   PICKS.forEach(function (p) { if (p[0] < b) h += '<option value="' + p[0] + '">' + p[1] + '</option>'; });
   if (sel.dataset.b !== String(b)) { sel.innerHTML = h; sel.dataset.b = String(b); }
   sel.value = String(S.pickup || 0);
+  var sp = $('sBrP'); if (sp && sp.dataset.b !== String(b)) { sp.innerHTML = h.replace('Sin anacrusa', 'Sin anacrusa'); sp.dataset.b = String(b); }
 }
 function mutate(fn) { pushHist(); fn(); normalize(); refresh(); }
 function allS() { return EX.list.length ? EX.list.map(function (o, j) { return j === EX.i ? S : o.S; }) : [S]; }
@@ -467,11 +475,11 @@ function exSwitch(j) {
 function exAdd() {
   exStash(); var cur = S, ns = newState(); ns.key = cur.key; ns.time = cur.time; ns.perSystem = cur.perSystem; ns.lines = cur.lines;
   EX.list.push({ S: ns, hist: [], redo: [] }); exSwitch(EX.list.length - 1);
-  msg('Ejercicio ' + EX.list.length + ' agregado: el anterior termina con doble barra. Cambia la tonalidad, el compás o la anacrusa si lo necesitas.', true);
+  msg('Hoja ' + EX.list.length + ' agregada. Al descargar o imprimir, todas las hojas salen juntas en una sola imagen.', true);
 }
 function exDel() {
   exStash(); if (EX.list.length < 2) return;
-  if (!confirm('¿Eliminar el ejercicio ' + (EX.i + 1) + ' de esta hoja?')) return;
+  if (!confirm('¿Quitar la hoja ' + (EX.i + 1) + '?')) return;
   EX.list.splice(EX.i, 1); var j = Math.min(EX.i, EX.list.length - 1); EX.i = -1; var o = EX.list[j]; EX.i = j; S = o.S; hist = o.hist; redo = o.redo; refresh();
 }
 function exSet(list, i) {
@@ -482,19 +490,19 @@ function renderTabs() {
   var box = $('exTabs'); if (!box) return; var L = allS(); box.innerHTML = '';
   L.forEach(function (x, j) {
     var b = document.createElement('button'); b.className = j === EX.i ? 'on' : '';
-    b.textContent = 'Ejercicio ' + (j + 1) + ' · ' + keyInfo(x.key)[2] + ' · ' + x.time;
+    b.textContent = 'Hoja ' + (j + 1) + ' · ' + keyInfo(x.key)[2] + ' · ' + x.time;
     b.addEventListener('click', function () { if (j !== EX.i) exSwitch(j); }); box.appendChild(b);
   });
-  var a = document.createElement('button'); a.textContent = '＋ Agregar ejercicio (doble barra)'; a.title = 'Cierra este ejercicio con doble barra y abre otro en la misma hoja, con su propia tonalidad, compás y anacrusa';
+  var a = document.createElement('button'); a.textContent = '＋ Nueva hoja'; a.title = 'Agrega otra hoja con su propia tonalidad, compás y anacrusa. Al descargar, todas las hojas salen juntas en una sola imagen';
   a.addEventListener('click', exAdd); box.appendChild(a);
-  if (L.length > 1) { var d = document.createElement('button'); d.textContent = '✕ Quitar este ejercicio'; d.addEventListener('click', exDel); box.appendChild(d); }
+  if (L.length > 1) { var d = document.createElement('button'); d.textContent = '✕ Quitar esta hoja'; d.addEventListener('click', exDel); box.appendChild(d); }
 }
 function msg(t, ok) { var m = $('msg'); m.textContent = t || ''; m.className = ok ? 'ok' : ''; }
 
 /* ================= dibujo ================= */
 function styleNote(n, o, vi) { if (o.color) { var c = VOICES[vi].c; n.setStyle({ fillStyle: c, strokeStyle: c }); } }
 function makeBeams(idxs, notes, kinds, o, vi, bs) {
-  var bl = TIMES[S.time].g, pos = (idxs[0] === 0 && S.pickup) ? TIMES[S.time].b - S.pickup : 0, groups = {}, out = [];
+  var bl = TIMES[S.time].g, pos = TIMES[S.time].b - mlenAt(CUR_K), groups = {}, out = [];
   bs.forEach(function (b, i) {
     if (kinds[i]) { var g = Math.floor((pos + EPS) / bl); (groups[g] = groups[g] || []).push(i); }
     pos += b;
@@ -580,7 +588,7 @@ function render(host, o) {
     for (k = m0 + 1; k < m1; k++) if (keyAtM(k) !== keyAtM(k - 1)) { extra[k] = 10 * (Math.abs(keyInfo(keyAtM(k))[3]) + cancelCount(keyAtM(k - 1), keyAtM(k))) + 16; exTot += extra[k]; }
     var avail = W - LEFT - RIGHT - pad0 - exTot, wts = [], tot = 0;
     var padsK = {};
-    for (k = m0; k < m1; k++) { padsK[k] = padsFor(part.ms[k] || [], (k === 0 && S.pickup) ? S.pickup : mlen); var w = Math.max(3, (part.ms[k] || []).length + padsK[k].length); wts.push(w); tot += w; }
+    for (k = m0; k < m1; k++) { padsK[k] = padsFor(part.ms[k] || [], mlenAt(k, mlen)); var w = Math.max(3, (part.ms[k] || []).length + padsK[k].length); wts.push(w); tot += w; }
     if (nSys > 1) tot += 4 * (per - cnt);
     var x = LEFT, sys = { i: s, top: top, yT: yT, yB: yB, ms: [], cols: [] };
     for (k = m0; k < m1; k++) {
@@ -595,7 +603,8 @@ function render(host, o) {
         tr.addKeySignature(kk, keyAtM(k - 1)); ba.addKeySignature(kk, keyAtM(k - 1));
         svgText(svg, x + 5, yB + 40 + 24, keyLabel(kk), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
       }
-      var isLast = (o.last !== false);
+      var isLast = (o.last !== false), dbl = (k < N - 1 && hasBr(k));
+      if (dbl) { tr.setEndBarType(VF.Barline.type.DOUBLE); ba.setEndBarType(VF.Barline.type.DOUBLE); }
       if (k === N - 1) { tr.setEndBarType(isLast ? VF.Barline.type.END : VF.Barline.type.DOUBLE); ba.setEndBarType(isLast ? VF.Barline.type.END : VF.Barline.type.DOUBLE); }
       tr.setContext(ctx).draw(); ba.setContext(ctx).draw();
       var CT = VF.StaveConnector.type;
@@ -603,9 +612,10 @@ function render(host, o) {
         new VF.StaveConnector(tr, ba).setType(CT.BRACE).setContext(ctx).draw();
         new VF.StaveConnector(tr, ba).setType(CT.SINGLE_LEFT).setContext(ctx).draw();
       }
-      new VF.StaveConnector(tr, ba).setType(k === N - 1 ? (isLast ? CT.BOLD_DOUBLE_RIGHT : CT.THIN_DOUBLE) : CT.SINGLE_RIGHT).setContext(ctx).draw();
+      new VF.StaveConnector(tr, ba).setType(k === N - 1 ? (isLast ? CT.BOLD_DOUBLE_RIGHT : CT.THIN_DOUBLE) : (dbl ? CT.THIN_DOUBLE : CT.SINGLE_RIGHT)).setContext(ctx).draw();
       var rec = { k: k, x0: x, x1: x + mw, idxs: idxs, nsx: tr.getNoteStartX() };
       if (idxs.length) {
+        CUR_K = k;
         var tv = mkVoices(idxs, [0, 1], 'treble', o, alts, padsK[k]), bv = mkVoices(idxs, [2, 3], 'bass', o, alts, padsK[k]);
         VF.Accidental.applyAccidentals(tv.voices, kk);
         VF.Accidental.applyAccidentals(bv.voices, kk);
@@ -816,7 +826,7 @@ function onClick(p, right) {
       if (S.lock) { msg('Este ejercicio tiene el ritmo fijo: completa las voces sobre los acordes existentes.'); return; }
       var part = layout.part, last = part.ms[part.ms.length - 1], acc = 0;
       last.forEach(function (i) { acc += DUR[S.cols[i].d].b; });
-      if (acc + DUR[ui.dur].b > ((part.ms.length === 1 && S.pickup) ? S.pickup : mlen) + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return; }
+      if (acc + DUR[ui.dur].b > mlenAt(part.ms.length - 1, mlen) + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return; }
       mutate(function () {
         var v = [null, null, null, null];
         if (ui.rest) v[vi] = { r: 1 }; else { var pt = pitchAt(vi, p.y, h.sys, keyForHit(h)); v[vi] = { l: pt.l, o: pt.o, a: pt.a }; }
@@ -1235,6 +1245,24 @@ function buildStaticUI() {
     mutate(function () { if (!S.kc) S.kc = {}; S.kc[d] = key; });
     msg('Desde el compás ' + d + ': ' + keyInfo(key)[1] + '.', true);
   });
+  $('sBrK').innerHTML = '<option value="">La misma tonalidad</option>'; $('sBrK').appendChild(g1.cloneNode(true)); $('sBrK').appendChild(g2.cloneNode(true));
+  $('bBrAdd').addEventListener('click', function () {
+    var d = parseInt($('nBrM').value, 10), key = $('sBrK').value, pk = parseFloat($('sBrP').value) || 0, mlen = TIMES[S.time].b, tot = S.measures - (S.pickup ? 1 : 0);
+    if (!(d >= 1)) { msg('Elige el compás después del cual va la doble barra (1 o más).'); return; }
+    if (d >= tot && !pk && !key) { msg('Ahí termina el ejercicio y ya lleva la barra final. Elige un compás anterior.'); return; }
+    var b = S.pickup ? d : d - 1, old = S.br && S.br[b], had = hasBr(b);
+    if (!S.br) S.br = {};
+    var snap = JSON.stringify(S.br); S.br[b] = pk;
+    var p = partition(S.cols, mlen), tm = Math.max(S.measures, b + 2, usedMeasures(p));
+    if (!p.ok) { S.br = JSON.parse(snap); msg('Con esa anacrusa algún acorde cruzaría la barra. Borra o cambia figuras primero.'); return; }
+    S.br = JSON.parse(snap);
+    mutate(function () {
+      if (!S.br) S.br = {}; S.br[b] = pk;
+      if (pk && S.measures < b + 2) S.measures = b + 2;
+      if (key) { if (!S.kc) S.kc = {}; S.kc[d + 1] = key; }
+    });
+    msg('Doble barra después del compás ' + d + (pk ? ' con anacrusa' : '') + (key ? ' y nueva tonalidad: ' + keyInfo(key)[1] : '') + '.', true);
+  });
   $('sTime').addEventListener('change', function () {
     var v = this.value, old = S.time; S.time = v;
     var pk = S.pickup && S.pickup < TIMES[v].b ? S.pickup : 0;
@@ -1288,6 +1316,15 @@ function buildStaticUI() {
 }
 function syncUI() {
   $('sKey').value = S.key;
+  var bl = $('brList'); bl.innerHTML = '';
+  brList().forEach(function (b) {
+    var d = S.pickup ? b : b + 1, bt = document.createElement('button'); bt.textContent = 'Doble barra tras compás ' + d + (brPk(b) ? ' (anacrusa)' : '') + ' ✕'; bt.title = 'Quitar esta doble barra'; bt.disabled = !!S.lock;
+    bt.addEventListener('click', function () {
+      var sn = JSON.stringify(S.br); delete S.br[b]; var ok = partition(S.cols, TIMES[S.time].b).ok; S.br = JSON.parse(sn);
+      if (!ok) { msg('Hay notas escritas en el compás de anacrusa que dejarían de caber. Bórralas primero.'); return; }
+      mutate(function () { delete S.br[b]; });
+    }); bl.appendChild(bt);
+  });
   var kl = $('kcList'); kl.innerHTML = '';
   kcList().forEach(function (d) {
     var b = document.createElement('button'); b.textContent = 'Compás ' + d + ': ' + keyInfo(S.kc[d])[1] + ' ✕'; b.title = 'Quitar este cambio de tonalidad'; b.disabled = !!S.lock;
@@ -1304,7 +1341,7 @@ function syncUI() {
   document.body.classList.toggle('pen-on', ui.mode === 'pen');
   if (ui.mode !== 'pen' && typeof penClear === 'function') penClear();
   var lk = !!S.lock;
-  ['sKey', 'sKcK', 'nKcM', 'bKcAdd', 'sTime', 'nMeas', 'sPick'].forEach(function (id) { $(id).disabled = lk; });
+  ['sKey', 'sKcK', 'nKcM', 'bKcAdd', 'sBrK', 'nBrM', 'sBrP', 'bBrAdd', 'sTime', 'nMeas', 'sPick'].forEach(function (id) { $(id).disabled = lk; });
   $('bCheck').style.display = S.chk ? '' : 'none';
   $('bUndo').disabled = !hist.length; $('bRedo').disabled = !redo.length;
   var sb = document.querySelector('#bVoice button[data-v="0"]'); sb.textContent = lk ? 'S 🔒' : 'S';
@@ -1453,7 +1490,7 @@ function highlight(ci) {
 function runChecks() {
   var cols = S.cols, mlen = TIMES[S.time].b, part = partition(cols, mlen), where = {}, out = [], pos = {};
   var pk = S.pickup || 0;
-  part.ms.forEach(function (m, k) { var a = (k === 0 && pk) ? mlen - pk : 0; m.forEach(function (i) { where[i] = (pk ? (k === 0 ? 'Anacrusa' : 'Compás ' + k) : 'Compás ' + (k + 1)) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
+  part.ms.forEach(function (m, k) { var a = mlen - mlenAt(k, mlen); m.forEach(function (i) { where[i] = (pk ? (k === 0 ? 'Anacrusa' : 'Compás ' + k) : 'Compás ' + (k + 1)) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
   var kOf = colKeys(part);
   var EFF = new Map(); cols.forEach(function (c, i) { EFF.set(c, [0, 1, 2, 3].map(function (v) { return effEntry(cols, i, v); })); });
   function np(c, vi) { var e = EFF.get(c)[vi]; return e && !e.r ? e : null; }
@@ -1512,7 +1549,7 @@ function buildExport() {
   try {
     for (j = 0; j < L; j++) {
       S = EX.list[j].S; var h = document.createElement('div');
-      render(h, { color: false, labels: true, header: j === 0, sub: j === 0 ? '' : 'Ejercicio ' + (j + 1) + (S.etitle ? ' · ' + S.etitle : ''), last: j === L - 1 });
+      render(h, { color: false, labels: true, header: j === 0, sub: j === 0 ? '' : 'Hoja ' + (j + 1) + (S.etitle ? ' · ' + S.etitle : ''), last: j === L - 1 });
       parts.push(h.querySelector('svg'));
     }
   } finally { S = keep; }
@@ -1723,7 +1760,7 @@ function putNoteVoice(vi, nv) {
   if (!layout || !layout.band) { msg('Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».'); return false; }
   var part = layout.part, last = part.ms[part.ms.length - 1], acc = 0;
   last.forEach(function (x) { acc += DUR[S.cols[x].d].b; });
-  if (acc + DUR[ui.dur].b > ((part.ms.length === 1 && S.pickup) ? S.pickup : TIMES[S.time].b) + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return false; }
+  if (acc + DUR[ui.dur].b > mlenAt(part.ms.length - 1) + EPS) { msg('Esa figura no cabe en lo que queda del compás. Elige una figura más corta.'); return false; }
   mutate(function () { var v = [null, null, null, null]; v[vi] = nv; S.cols.push({ d: ui.dur, v: v, rn: null, cs: null }); });
   return true;
 }
