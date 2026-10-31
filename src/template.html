@@ -60,15 +60,16 @@
       <div class="grp"><span class="t">Continuar después</span><div class="b"><button id="bSave">Guardar trabajo</button><button id="bOpen" title="Abre un archivo .json o un PNG descargado de esta página">Abrir trabajo (.json o PNG)</button><input type="file" id="fOpen" accept=".json,application/json,.png,image/png" hidden></div></div>
     </div>
     <div class="row">
-      <label class="grp"><span class="t">Cargar ejercicio (código del docente)</span><span class="b"><input type="text" id="iCode" placeholder="Pega aquí el código" style="width:min(420px,70vw)"><button id="bLoad">Cargar</button><button id="bNew" title="Borra todo y desbloquea las voces para empezar un ejercicio propio">Nuevo ejercicio</button></span></label>
+      <label class="grp"><span class="t">Cargar ejercicio (código del docente)</span><span class="b"><input type="text" id="iCode" placeholder="Pega aquí el código" style="width:min(420px,70vw)"><button id="bLoad">Cargar</button><button id="bNew" title="Borra este ejercicio y desbloquea las voces para empezar uno propio">Reiniciar este ejercicio</button></span></label>
     </div>
   </div>
 
   <div id="msg" role="status"></div>
+  <div id="exTabs" class="b" style="margin:6px 0"></div>
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v14</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v15</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>

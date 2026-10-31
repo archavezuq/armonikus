@@ -60,6 +60,7 @@ var W = 960, SYSH = 290, TOPPAD = 76, GAP = 56, LEFT = 54, RIGHT = 26;
 var S = newState();
 var info = { name: '', group: '', date: today(), inst: 'piano', bpm: 76 };
 var ui = { voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
+var EX = { list: [], i: 0 };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
 function newState() {
@@ -164,7 +165,39 @@ function fillPick() {
   sel.value = String(S.pickup || 0);
 }
 function mutate(fn) { pushHist(); fn(); normalize(); refresh(); }
-function save() { try { localStorage.setItem('lm3_satb_v1', JSON.stringify({ S: S, info: info })); } catch (e) { } }
+function allS() { return EX.list.length ? EX.list.map(function (o, j) { return j === EX.i ? S : o.S; }) : [S]; }
+function save() { try { localStorage.setItem('lm3_satb_v1', JSON.stringify({ S: S, info: info, X: allS(), xi: EX.i })); } catch (e) { } }
+function exStash() { if (!EX.list.length) EX.list = [{ S: S, hist: hist, redo: redo }]; EX.list[EX.i] = { S: S, hist: hist, redo: redo }; }
+function exSwitch(j) {
+  exStash(); if (j < 0 || j >= EX.list.length) return;
+  stopPlay(); closePalette(); penClear(); EX.i = j; var o = EX.list[j]; S = o.S; hist = o.hist; redo = o.redo;
+  if (S.lock && ui.voice === 0) ui.voice = 1; refresh();
+}
+function exAdd() {
+  exStash(); var cur = S, ns = newState(); ns.key = cur.key; ns.time = cur.time; ns.perSystem = cur.perSystem; ns.lines = cur.lines;
+  EX.list.push({ S: ns, hist: [], redo: [] }); exSwitch(EX.list.length - 1);
+  msg('Ejercicio ' + EX.list.length + ' agregado: el anterior termina con doble barra. Cambia la tonalidad, el compás o la anacrusa si lo necesitas.', true);
+}
+function exDel() {
+  exStash(); if (EX.list.length < 2) return;
+  if (!confirm('¿Eliminar el ejercicio ' + (EX.i + 1) + ' de esta hoja?')) return;
+  EX.list.splice(EX.i, 1); var j = Math.min(EX.i, EX.list.length - 1); EX.i = -1; var o = EX.list[j]; EX.i = j; S = o.S; hist = o.hist; redo = o.redo; refresh();
+}
+function exSet(list, i) {
+  EX.list = list.map(function (x) { return { S: x, hist: [], redo: [] }; }); EX.i = Math.max(0, Math.min(list.length - 1, i || 0));
+  var o = EX.list[EX.i]; S = o.S; hist = o.hist; redo = o.redo;
+}
+function renderTabs() {
+  var box = $('exTabs'); if (!box) return; var L = allS(); box.innerHTML = '';
+  L.forEach(function (x, j) {
+    var b = document.createElement('button'); b.className = j === EX.i ? 'on' : '';
+    b.textContent = 'Ejercicio ' + (j + 1) + ' · ' + keyInfo(x.key)[2] + ' · ' + x.time;
+    b.addEventListener('click', function () { if (j !== EX.i) exSwitch(j); }); box.appendChild(b);
+  });
+  var a = document.createElement('button'); a.textContent = '＋ Agregar ejercicio (doble barra)'; a.title = 'Cierra este ejercicio con doble barra y abre otro en la misma hoja, con su propia tonalidad, compás y anacrusa';
+  a.addEventListener('click', exAdd); box.appendChild(a);
+  if (L.length > 1) { var d = document.createElement('button'); d.textContent = '✕ Quitar este ejercicio'; d.addEventListener('click', exDel); box.appendChild(d); }
+}
 function msg(t, ok) { var m = $('msg'); m.textContent = t || ''; m.className = ok ? 'ok' : ''; }
 
 /* ================= dibujo ================= */
@@ -240,7 +273,7 @@ function textW(str, font) { measCanvas.font = font; return measCanvas.measureTex
 function render(host, o) {
   host.innerHTML = '';
   var mlen = TIMES[S.time].b, part = partition(S.cols, mlen), N = Math.max(S.measures, usedMeasures(part));
-  var per = S.perSystem, nSys = Math.ceil(N / per), headerH = o.header ? 92 : 6;
+  var per = S.perSystem, nSys = Math.ceil(N / per), headerH = o.header ? 92 : (o.sub ? 32 : 6);
   var H = headerH + nSys * SYSH + 8;
   var r = new VF.Renderer(host, VF.Renderer.Backends.SVG);
   r.resize(W, H);
@@ -271,14 +304,15 @@ function render(host, o) {
         tr.addKeySignature(kk, keyAtM(k - 1)); ba.addKeySignature(kk, keyAtM(k - 1));
         svgText(svg, x + 5, yB + 40 + 24, keyLabel(kk), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
       }
-      if (k === N - 1) { tr.setEndBarType(VF.Barline.type.END); ba.setEndBarType(VF.Barline.type.END); }
+      var isLast = (o.last !== false);
+      if (k === N - 1) { tr.setEndBarType(isLast ? VF.Barline.type.END : VF.Barline.type.DOUBLE); ba.setEndBarType(isLast ? VF.Barline.type.END : VF.Barline.type.DOUBLE); }
       tr.setContext(ctx).draw(); ba.setContext(ctx).draw();
       var CT = VF.StaveConnector.type;
       if (k === m0) {
         new VF.StaveConnector(tr, ba).setType(CT.BRACE).setContext(ctx).draw();
         new VF.StaveConnector(tr, ba).setType(CT.SINGLE_LEFT).setContext(ctx).draw();
       }
-      new VF.StaveConnector(tr, ba).setType(k === N - 1 ? CT.BOLD_DOUBLE_RIGHT : CT.SINGLE_RIGHT).setContext(ctx).draw();
+      new VF.StaveConnector(tr, ba).setType(k === N - 1 ? (isLast ? CT.BOLD_DOUBLE_RIGHT : CT.THIN_DOUBLE) : CT.SINGLE_RIGHT).setContext(ctx).draw();
       var rec = { k: k, x0: x, x1: x + mw, idxs: idxs, nsx: tr.getNoteStartX() };
       if (idxs.length) {
         var tv = mkVoices(idxs, [0, 1], 'treble', o, alts, padsK[k]), bv = mkVoices(idxs, [2, 3], 'bass', o, alts, padsK[k]);
@@ -302,6 +336,7 @@ function render(host, o) {
     svgText(svg, LEFT + 4, yB + 40 + 58, keyLabel(kM0), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
   }
   if (o.header) drawHeader(svg);
+  if (o.sub) svgText(svg, LEFT, 22, o.sub, 15, { 'font-weight': '700' });
   if (o.labels) drawLabels(svg, L);
   return L;
 }
@@ -994,7 +1029,7 @@ function fit() {
 function refresh() {
   closePaletteIfStale();
   layout = render($('scoreHost'), { color: true, labels: false, header: false });
-  buildOverlay(); fit(); syncUI(); save();
+  buildOverlay(); fit(); syncUI(); renderTabs(); save();
 }
 function closePaletteIfStale() { /* la paleta se redibuja desde sus propias acciones */ }
 
@@ -1181,7 +1216,21 @@ function needName() {
   if (info.name.trim()) return false;
   msg('Escribe tu nombre antes de descargar o imprimir.'); $('iName').focus(); return true;
 }
-function buildExport() { var h = document.createElement('div'); render(h, { color: false, labels: true, header: true }); return h.querySelector('svg'); }
+function buildExport() {
+  exStash(); var keep = S, L = EX.list.length, parts = [], j;
+  try {
+    for (j = 0; j < L; j++) {
+      S = EX.list[j].S; var h = document.createElement('div');
+      render(h, { color: false, labels: true, header: j === 0, sub: j === 0 ? '' : 'Ejercicio ' + (j + 1) + (S.etitle ? ' · ' + S.etitle : ''), last: j === L - 1 });
+      parts.push(h.querySelector('svg'));
+    }
+  } finally { S = keep; }
+  if (L === 1) return parts[0];
+  var tot = 0, wd = W; parts.forEach(function (p) { tot += parseFloat(p.getAttribute('height')); });
+  var out = document.createElementNS(SVGNS, 'svg'); out.setAttribute('width', wd); out.setAttribute('height', tot); out.setAttribute('viewBox', '0 0 ' + wd + ' ' + tot);
+  var y = 0; parts.forEach(function (p) { var hh = parseFloat(p.getAttribute('height')); p.setAttribute('y', y); p.setAttribute('x', 0); out.appendChild(p); y += hh; });
+  return out;
+}
 function exportPNG() {
   if (needName()) return;
   var svg = buildExport(), w = parseFloat(svg.getAttribute('width')), h = parseFloat(svg.getAttribute('height'));
@@ -1192,7 +1241,7 @@ function exportPNG() {
     var c = cv.getContext('2d'); c.fillStyle = '#fff'; c.fillRect(0, 0, cv.width, cv.height); c.drawImage(img, 0, 0, cv.width, cv.height);
     cv.toBlob(function (b) {
       b.arrayBuffer().then(function (ab) {
-        var out; try { out = new Blob([pngEmbed(new Uint8Array(ab), b64u(JSON.stringify({ v: 1, info: info, S: S })))], { type: 'image/png' }); } catch (e) { out = b; }
+        var out; try { out = new Blob([pngEmbed(new Uint8Array(ab), b64u(JSON.stringify({ v: 1, info: info, S: S, X: allS(), xi: EX.i })))], { type: 'image/png' }); } catch (e) { out = b; }
         download(out, fileBase() + '.png'); msg('Imagen descargada. Súbela en la tarea de Moodle.', true);
       });
     }, 'image/png');
@@ -1237,10 +1286,10 @@ function download(blob, name) {
   var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
   setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
-function saveJSON() { download(new Blob([JSON.stringify({ v: 1, info: info, S: S })], { type: 'application/json' }), fileBase() + '.json'); msg('Trabajo guardado. Para seguir después, usa «Abrir trabajo».', true); }
+function saveJSON() { download(new Blob([JSON.stringify({ v: 1, info: info, S: S, X: allS(), xi: EX.i })], { type: 'application/json' }), fileBase() + '.json'); msg('Trabajo guardado. Para seguir después, usa «Abrir trabajo».', true); }
 function openJSON() {
   var f = this.files[0]; if (!f) return; var r = new FileReader(), inp = this;
-  function apply(d) { if (!d.S || !d.S.cols) throw 0; pushHist(); S = d.S; info = d.info || info; if (!info.inst) info.inst = 'piano'; if (!info.bpm) info.bpm = 76; refresh(); }
+  function apply(d) { if (!d.S || !d.S.cols) throw 0; exStash(); if (d.X && d.X.length) exSet(d.X, d.xi); else exSet([d.S], 0); info = d.info || info; if (!info.inst) info.inst = 'piano'; if (!info.bpm) info.bpm = 76; refresh(); }
   r.onload = function () {
     try {
       var u = new Uint8Array(r.result);
@@ -1287,13 +1336,13 @@ function genCode() {
   $('tOut').value = packCode(o); msg('Código generado.', true);
 }
 function newExercise() {
-  if (S.cols.length && !confirm('¿Empezar un ejercicio nuevo? Se borrará lo que hay en pantalla (puedes recuperarlo con «Deshacer»).')) return;
+  if (S.cols.length && !confirm('¿Reiniciar este ejercicio? Se borrará lo que hay en pantalla (puedes recuperarlo con «Deshacer»).')) return;
   var ns = newState(); ns.lines = S.lines;
   pushHist(); S = ns; ui.voice = 0; ui.mode = 'write'; ui.own = false; $('cOwn').checked = false;
   $('iCode').value = '';
   try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
   normalize(); refresh();
-  msg('Ejercicio nuevo: todas las voces y controles están libres.', true);
+  msg('Ejercicio reiniciado: todas las voces y controles están libres.', true);
 }
 function loadCode(str) {
   str = (str || '').trim(); if (!str) { msg('Pega primero el código del ejercicio.'); return; }
@@ -1484,9 +1533,9 @@ buildStaticUI();
 })();
 try {
   var sv = JSON.parse(localStorage.getItem('lm3_satb_v1') || 'null');
-  if (sv && sv.S && sv.S.cols) { S = sv.S; info = sv.info || info; if (!info.date) info.date = today(); if (!info.inst) info.inst = 'piano'; if (!info.bpm) info.bpm = 76; }
+  if (sv && sv.S && sv.S.cols) { if (sv.X && sv.X.length) exSet(sv.X, sv.xi); else S = sv.S; info = sv.info || info; if (!info.date) info.date = today(); if (!info.inst) info.inst = 'piano'; if (!info.bpm) info.bpm = 76; }
 } catch (e) { }
 refresh();
 if (location.hash.indexOf('#ej=') === 0) loadCode(location.hash);
-window.__lm3 = { penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, parseSpeech: parseSpeech };
+window.__lm3 = { penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, parseSpeech: parseSpeech };
 })();
