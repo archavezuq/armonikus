@@ -88,6 +88,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
 .kcl{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.kcl:empty{display:none}.kcl button{padding:2px 8px;font-size:12px}
 
 #langSw{float:right;display:flex;gap:0;margin:2px 0 0 8px}#langSw button{padding:3px 10px;font-size:12px;font-weight:700;border-radius:0;min-height:0}#langSw button:first-child{border-radius:6px 0 0 6px}#langSw button:last-child{border-radius:0 6px 6px 0;margin-left:-1px}#langSw button.on{background:#2a5db0;color:#fff;border-color:#2a5db0}
+#slots .slot.svb{width:30px;height:22px;padding:0;font:700 13px system-ui,Arial,sans-serif;border:2px solid var(--c);color:var(--c);background:rgba(255,255,255,.92);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}#slots .slot.svb.on{background:var(--c);color:#fff}#slots .slot.svb:hover{background:var(--c);color:#fff}
 
 </style>
 </head>
@@ -154,7 +155,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v23</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v24</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas>
   </details>
@@ -1081,6 +1082,15 @@ function drawLabels(svg, L) {
 function buildOverlay() {
   var slots = $('slots'), ov = $('ov'), kOf = colKeys(layout.part);
   slots.innerHTML = ''; ov.innerHTML = '';
+  layout.systems.forEach(function (sys) {
+    VOICES.forEach(function (v, vi) {
+      var bt = document.createElement('button'); bt.className = 'slot svb'; bt.textContent = v.k; bt.dataset.v = vi; bt.title = v.n + ' (tecla ' + (vi + 1) + ')';
+      bt.style.setProperty('--c', v.c); bt.style.left = '4px'; bt.style.top = ((vi < 2 ? sys.yT : sys.yB) + (vi % 2 ? 22 : -2)) + 'px';
+      if (vi === ui.voice) bt.classList.add('on');
+      bt.addEventListener('click', function (e) { e.stopPropagation(); ui.voice = vi; syncUI(); });
+      slots.appendChild(bt);
+    });
+  });
   ov.setAttribute('width', W); ov.setAttribute('height', layout.H); ov.setAttribute('viewBox', '0 0 ' + W + ' ' + layout.H);
   // zona del siguiente acorde
   var band = openBand();
@@ -1760,7 +1770,7 @@ function syncUI() {
   $('nKcM').min = S.pickup ? 1 : 2;
   $('sTime').value = S.time; $('nMeas').value = S.measures - (S.pickup ? 1 : 0); fillPick(); $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
   $('iName').value = info.name; $('iGroup').value = info.group; $('iDate').value = info.date; if (!$('sInst').querySelector('option[value="' + info.inst + '"]')) info.inst = 'piano'; $('sInst').value = info.inst || 'piano'; $('nBpm').value = info.bpm || 76;
-  Array.prototype.forEach.call(document.querySelectorAll('#bVoice button'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
+  Array.prototype.forEach.call(document.querySelectorAll('#bVoice button, #slots .svb'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
   Array.prototype.forEach.call(document.querySelectorAll('#bDur button'), function (b) { b.classList.toggle('on', b.dataset.d === ui.dur); });
   $('bRest').classList.toggle('on', ui.rest);
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });

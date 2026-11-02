@@ -416,6 +416,15 @@ function drawLabels(svg, L) {
 function buildOverlay() {
   var slots = $('slots'), ov = $('ov'), kOf = colKeys(layout.part);
   slots.innerHTML = ''; ov.innerHTML = '';
+  layout.systems.forEach(function (sys) {
+    VOICES.forEach(function (v, vi) {
+      var bt = document.createElement('button'); bt.className = 'slot svb'; bt.textContent = v.k; bt.dataset.v = vi; bt.title = v.n + ' (tecla ' + (vi + 1) + ')';
+      bt.style.setProperty('--c', v.c); bt.style.left = '4px'; bt.style.top = ((vi < 2 ? sys.yT : sys.yB) + (vi % 2 ? 22 : -2)) + 'px';
+      if (vi === ui.voice) bt.classList.add('on');
+      bt.addEventListener('click', function (e) { e.stopPropagation(); ui.voice = vi; syncUI(); });
+      slots.appendChild(bt);
+    });
+  });
   ov.setAttribute('width', W); ov.setAttribute('height', layout.H); ov.setAttribute('viewBox', '0 0 ' + W + ' ' + layout.H);
   // zona del siguiente acorde
   var band = openBand();
@@ -1095,7 +1104,7 @@ function syncUI() {
   $('nKcM').min = S.pickup ? 1 : 2;
   $('sTime').value = S.time; $('nMeas').value = S.measures - (S.pickup ? 1 : 0); fillPick(); $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
   $('iName').value = info.name; $('iGroup').value = info.group; $('iDate').value = info.date; if (!$('sInst').querySelector('option[value="' + info.inst + '"]')) info.inst = 'piano'; $('sInst').value = info.inst || 'piano'; $('nBpm').value = info.bpm || 76;
-  Array.prototype.forEach.call(document.querySelectorAll('#bVoice button'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
+  Array.prototype.forEach.call(document.querySelectorAll('#bVoice button, #slots .svb'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
   Array.prototype.forEach.call(document.querySelectorAll('#bDur button'), function (b) { b.classList.toggle('on', b.dataset.d === ui.dur); });
   $('bRest').classList.toggle('on', ui.rest);
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
