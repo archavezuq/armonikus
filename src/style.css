@@ -82,3 +82,4 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
 
 #langSw{float:right;display:flex;gap:0;margin:2px 0 0 8px}#langSw button{padding:3px 10px;font-size:12px;font-weight:700;border-radius:0;min-height:0}#langSw button:first-child{border-radius:6px 0 0 6px}#langSw button:last-child{border-radius:0 6px 6px 0;margin-left:-1px}#langSw button.on{background:#2a5db0;color:#fff;border-color:#2a5db0}
 #slots .slot.svb{width:30px;height:22px;padding:0;font:700 13px system-ui,Arial,sans-serif;border:2px solid var(--c);color:var(--c);background:rgba(255,255,255,.92);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}#slots .slot.svb.on{background:var(--c);color:#fff}#slots .slot.svb:hover{background:var(--c);color:#fff}
+#bdCur{position:fixed;pointer-events:none;border:1.5px solid #555;background:rgba(120,120,120,.22);border-radius:50%;z-index:50;transform:translate(-50%,-50%)}.bdl{font-size:12px;color:var(--mut);align-self:center}

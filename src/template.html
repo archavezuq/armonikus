@@ -71,9 +71,9 @@
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v24</summary>
-    <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
-    <canvas id="bdCv"></canvas>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v25</summary>
+    <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
+    <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>
 
   <details class="panel" id="teacher">

@@ -89,6 +89,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
 
 #langSw{float:right;display:flex;gap:0;margin:2px 0 0 8px}#langSw button{padding:3px 10px;font-size:12px;font-weight:700;border-radius:0;min-height:0}#langSw button:first-child{border-radius:6px 0 0 6px}#langSw button:last-child{border-radius:0 6px 6px 0;margin-left:-1px}#langSw button.on{background:#2a5db0;color:#fff;border-color:#2a5db0}
 #slots .slot.svb{width:30px;height:22px;padding:0;font:700 13px system-ui,Arial,sans-serif;border:2px solid var(--c);color:var(--c);background:rgba(255,255,255,.92);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}#slots .slot.svb.on{background:var(--c);color:#fff}#slots .slot.svb:hover{background:var(--c);color:#fff}
+#bdCur{position:fixed;pointer-events:none;border:1.5px solid #555;background:rgba(120,120,120,.22);border-radius:50%;z-index:50;transform:translate(-50%,-50%)}.bdl{font-size:12px;color:var(--mut);align-self:center}
 
 </style>
 </head>
@@ -155,9 +156,9 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v24</summary>
-    <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="8">Muy gruesa</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
-    <canvas id="bdCv"></canvas>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v25</summary>
+    <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
+    <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>
 
   <details class="panel" id="teacher">
@@ -418,10 +419,18 @@ var I18N_D = {
   "Borrador": "Eraser",
   "Grosor de la línea": "Line thickness",
   "Muy fina": "Very thin",
+  "Muy grande": "Very large",
   "Fina": "Thin",
   "Media": "Medium",
   "Gruesa": "Thick",
   "Muy gruesa": "Very thick",
+  "Extra gruesa": "Extra thick",
+  "Grosor del lápiz": "Pen thickness",
+  "Tamaño del borrador": "Eraser size",
+  "Pequeño": "Small",
+  "Mediano": "Medium",
+  "Grande": "Large",
+  "Enorme": "Huge",
   "Color": "Color",
   "Borrar todo": "Clear all",
   /* --- docente --- */
@@ -2331,12 +2340,18 @@ buildStaticUI();
     var r = Math.min(2, window.devicePixelRatio || 1); cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
   function W0() { return parseFloat($('bdW').value) || 2.4; }
+  function EW() { return parseFloat($('bdEW').value) || 20; }
+  var cur = $('bdCur');
+  function curShow(e) { if (tool !== 'eraser') { cur.hidden = true; return; } var d = EW(); cur.style.width = d + 'px'; cur.style.height = d + 'px'; cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px'; cur.hidden = false; }
+  cv.addEventListener('pointermove', curShow); cv.addEventListener('pointerdown', curShow);
+  cv.addEventListener('pointerleave', function () { cur.hidden = true; });
+  cv.addEventListener('pointerup', function (e) { if (e.pointerType === 'touch') cur.hidden = true; });
   var svT = null, cw = 0;
   function save() { clearTimeout(svT); svT = setTimeout(function () { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }, 3000); }
   function pos(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   function seg(a, b, w) {
     cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value;
-    cx.lineWidth = tool === 'eraser' ? 6 * w : w; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
+    cx.lineWidth = tool === 'eraser' ? EW() : w; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
   }
   cv.addEventListener('pointerdown', function (e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -2348,7 +2363,7 @@ buildStaticUI();
     if (!drawing || e.pointerId !== drawing.id) return;
     if (e.pointerType === 'mouse' && !(e.buttons & 1)) { drawing = null; save(); return; }
     var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
-    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value; cx.lineWidth = tool === 'eraser' ? 6 * W0() : W0();
+    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value; cx.lineWidth = tool === 'eraser' ? EW() : W0();
     cx.beginPath(); cx.moveTo(drawing.p.x, drawing.p.y);
     evs.forEach(function (ev) { var q = pos(ev); cx.lineTo(q.x, q.y); drawing.p = q; });
     cx.stroke();
@@ -2359,7 +2374,7 @@ buildStaticUI();
   cv.addEventListener('gesturestart', function (e) { e.preventDefault(); });
   function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
-  $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
+  $('bdPen').addEventListener('click', function () { tool = 'pen'; cur.hidden = true; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
   $('bdEr').addEventListener('click', function () { tool = 'eraser'; $('bdEr').classList.add('on'); $('bdPen').classList.remove('on'); });
   $('bdClr').addEventListener('click', function () { if (confirm(T('¿Borrar toda la pizarra?'))) { cx.clearRect(0, 0, cv.width, cv.height); save(); } });
   $('bdPen').classList.add('on');

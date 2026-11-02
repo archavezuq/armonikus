@@ -1665,12 +1665,18 @@ buildStaticUI();
     var r = Math.min(2, window.devicePixelRatio || 1); cv.width = w * r; cv.height = h * r; cx.setTransform(r, 0, 0, r, 0, 0); cx.lineCap = 'round'; cx.lineJoin = 'round';
     if (old) { var im = new Image(); im.onload = function () { cx.drawImage(im, 0, 0, w, h); }; im.src = old; } }
   function W0() { return parseFloat($('bdW').value) || 2.4; }
+  function EW() { return parseFloat($('bdEW').value) || 20; }
+  var cur = $('bdCur');
+  function curShow(e) { if (tool !== 'eraser') { cur.hidden = true; return; } var d = EW(); cur.style.width = d + 'px'; cur.style.height = d + 'px'; cur.style.left = e.clientX + 'px'; cur.style.top = e.clientY + 'px'; cur.hidden = false; }
+  cv.addEventListener('pointermove', curShow); cv.addEventListener('pointerdown', curShow);
+  cv.addEventListener('pointerleave', function () { cur.hidden = true; });
+  cv.addEventListener('pointerup', function (e) { if (e.pointerType === 'touch') cur.hidden = true; });
   var svT = null, cw = 0;
   function save() { clearTimeout(svT); svT = setTimeout(function () { try { localStorage.setItem(KEY, cv.toDataURL()); } catch (e) { } }, 3000); }
   function pos(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   function seg(a, b, w) {
     cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value;
-    cx.lineWidth = tool === 'eraser' ? 6 * w : w; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
+    cx.lineWidth = tool === 'eraser' ? EW() : w; cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.stroke();
   }
   cv.addEventListener('pointerdown', function (e) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -1682,7 +1688,7 @@ buildStaticUI();
     if (!drawing || e.pointerId !== drawing.id) return;
     if (e.pointerType === 'mouse' && !(e.buttons & 1)) { drawing = null; save(); return; }
     var evs = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
-    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value; cx.lineWidth = tool === 'eraser' ? 6 * W0() : W0();
+    cx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over'; cx.strokeStyle = $('bdCol').value; cx.lineWidth = tool === 'eraser' ? EW() : W0();
     cx.beginPath(); cx.moveTo(drawing.p.x, drawing.p.y);
     evs.forEach(function (ev) { var q = pos(ev); cx.lineTo(q.x, q.y); drawing.p = q; });
     cx.stroke();
@@ -1693,7 +1699,7 @@ buildStaticUI();
   cv.addEventListener('gesturestart', function (e) { e.preventDefault(); });
   function end(e) { if (drawing && e.pointerId === drawing.id) { drawing = null; save(); } }
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
-  $('bdPen').addEventListener('click', function () { tool = 'pen'; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
+  $('bdPen').addEventListener('click', function () { tool = 'pen'; cur.hidden = true; $('bdPen').classList.add('on'); $('bdEr').classList.remove('on'); });
   $('bdEr').addEventListener('click', function () { tool = 'eraser'; $('bdEr').classList.add('on'); $('bdPen').classList.remove('on'); });
   $('bdClr').addEventListener('click', function () { if (confirm(T('¿Borrar toda la pizarra?'))) { cx.clearRect(0, 0, cv.width, cv.height); save(); } });
   $('bdPen').classList.add('on');
