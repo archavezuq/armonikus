@@ -60,12 +60,12 @@ var EPS = 1e-6;
 var W = 960, SYSH = 290, TOPPAD = 76, GAP = 56, LEFT = 54, RIGHT = 26;
 var S = newState();
 var info = { name: '', group: '', date: today(), inst: 'piano', bpm: 76 };
-var ui = { dyn: 'mf', voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
+var ui = { rpt: 're', dyn: 'mf', voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
 var EX = { list: [], i: 0 };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
 function newState() {
-  return { etitle: '', key: 'C', kc: {}, time: '4/4', measures: 4, pickup: 0, br: {}, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
+  return { etitle: '', key: 'C', kc: {}, time: '4/4', measures: 4, pickup: 0, br: {}, rp: {}, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function $(id) { return document.getElementById(id); }
@@ -326,13 +326,20 @@ function render(host, o) {
       var isLast = (o.last !== false), dbl = (k < N - 1 && hasBr(k));
       if (dbl) { tr.setEndBarType(VF.Barline.type.DOUBLE); ba.setEndBarType(VF.Barline.type.DOUBLE); }
       if (k === N - 1) { tr.setEndBarType(isLast ? VF.Barline.type.END : VF.Barline.type.DOUBLE); ba.setEndBarType(isLast ? VF.Barline.type.END : VF.Barline.type.DOUBLE); }
+      var rk = (S.rp && S.rp[k]) || {}, BT = VF.Barline.type;
+      if (rk.rs) { tr.setBegBarType(BT.REPEAT_BEGIN); ba.setBegBarType(BT.REPEAT_BEGIN); }
+      if (rk.re) { tr.setEndBarType(BT.REPEAT_END); ba.setEndBarType(BT.REPEAT_END); }
+      if (rk.v) {
+        var vp = k > m0 && ((S.rp[k - 1] || {}).v === rk.v), vn = k < m1 - 1 && ((S.rp[k + 1] || {}).v === rk.v), VT = VF.Volta.type;
+        tr.setVoltaType(vp ? (vn ? VT.MID : VT.END) : (vn ? VT.BEGIN : VT.BEGIN_END), rk.v + '.', 30);
+      }
+      if (rk.mk && RPT_VF[rk.mk]) tr.setRepetitionType(VF.Repetition.type[RPT_VF[rk.mk]], 26);
       tr.setContext(ctx).draw(); ba.setContext(ctx).draw();
       var CT = VF.StaveConnector.type;
-      if (k === m0) {
-        new VF.StaveConnector(tr, ba).setType(CT.BRACE).setContext(ctx).draw();
-        new VF.StaveConnector(tr, ba).setType(CT.SINGLE_LEFT).setContext(ctx).draw();
-      }
-      new VF.StaveConnector(tr, ba).setType(k === N - 1 ? (isLast ? CT.BOLD_DOUBLE_RIGHT : CT.THIN_DOUBLE) : (dbl ? CT.THIN_DOUBLE : CT.SINGLE_RIGHT)).setContext(ctx).draw();
+      if (k === m0) new VF.StaveConnector(tr, ba).setType(CT.BRACE).setContext(ctx).draw();
+      if (rk.rs) new VF.StaveConnector(tr, ba).setType(CT.BOLD_DOUBLE_LEFT).setContext(ctx).draw();
+      else if (k === m0) new VF.StaveConnector(tr, ba).setType(CT.SINGLE_LEFT).setContext(ctx).draw();
+      new VF.StaveConnector(tr, ba).setType(rk.re ? CT.BOLD_DOUBLE_RIGHT : k === N - 1 ? (isLast ? CT.BOLD_DOUBLE_RIGHT : CT.THIN_DOUBLE) : (dbl ? CT.THIN_DOUBLE : CT.SINGLE_RIGHT)).setContext(ctx).draw();
       var rec = { k: k, x0: x, x1: x + mw, idxs: idxs, nsx: tr.getNoteStartX() };
       if (idxs.length) {
         CUR_K = k;
@@ -579,6 +586,19 @@ function onClick(p, right) {
     } else {
       msg(layout.band ? 'Escribe los acordes en orden: el siguiente va en el compás sombreado.' : 'Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».');
     }
+  } else if (mode === 'rpt') {
+    if (h.col == null) { msg('Haz clic sobre un acorde del compás al que va la marca.'); return; }
+    var mk0 = -1; layout.part.ms.forEach(function (m, q) { if (m.indexOf(h.col) >= 0) mk0 = q; });
+    var rv = ui.rpt;
+    mutate(function () {
+      S.rp = S.rp || {}; var r0 = S.rp[mk0] || (S.rp[mk0] = {});
+      if (rv === 'x') delete S.rp[mk0];
+      else if (rv === 'rs') { if (r0.rs) delete r0.rs; else r0.rs = 1; }
+      else if (rv === 're') { if (r0.re) delete r0.re; else r0.re = 1; }
+      else if (rv === 'v1' || rv === 'v2') { var vv = +rv.charAt(1); if (r0.v === vv) delete r0.v; else r0.v = vv; }
+      else { if (r0.mk === rv) delete r0.mk; else r0.mk = rv; }
+      if (S.rp[mk0] && !Object.keys(S.rp[mk0]).length) delete S.rp[mk0];
+    });
   } else if (mode === 'dyn') {
     if (h.col == null) { msg('Haz clic sobre un acorde ya escrito para ponerle la dinámica.'); return; }
     var dv = ui.dyn, c0 = S.cols[h.col];
@@ -997,6 +1017,9 @@ function buildStaticUI() {
   });
   document.addEventListener('pointerdown', function (e) { if (!e.target.closest('#qbar .dd')) closeDD(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDD(); });
+  Array.prototype.forEach.call(document.querySelectorAll('#pRpt button'), function (b) {
+    b.addEventListener('click', function () { ui.rpt = b.dataset.r; ui.mode = 'rpt'; PEN.cur = null; syncUI(); });
+  });
   Array.prototype.forEach.call(document.querySelectorAll('#pDyn button'), function (b) {
     b.addEventListener('click', function () { ui.dyn = b.dataset.dyn; ui.mode = 'dyn'; PEN.cur = null; syncUI(); });
   });
@@ -1123,8 +1146,8 @@ function syncUI() {
   var tD = $('tDur'); if (tD) {
     tD.innerHTML = durIcon(ui.dur) + ' ▾'; tD.title = DUR[ui.dur].name;
     var tA = $('tAcc'); tA.textContent = (ui.acc === 'auto' ? '♯♭' : (ui.acc === 0 ? '♮' : accSym(ui.acc))) + ' ▾'; tA.classList.toggle('on', ui.acc !== 'auto');
-    var cm = document.querySelector('#bMode button[data-mode="' + ui.mode + '"]'); $('tMode').textContent = (ui.mode === 'dyn' ? 'Dinámica' : cm ? cm.textContent : '') + ' ▾'; $('tMode').classList.toggle('on', ui.mode !== 'write');
-    var tY = $('tDyn'); tY.textContent = (ui.mode === 'dyn' ? (ui.dyn || '✕') : 'mf') + ' ▾'; tY.style.fontStyle = 'italic'; tY.classList.toggle('on', ui.mode === 'dyn');
+    var cm = document.querySelector('#bMode button[data-mode="' + ui.mode + '"]'); $('tMode').textContent = (ui.mode === 'dyn' ? 'Dinámica' : ui.mode === 'rpt' ? 'Repetición' : cm ? cm.textContent : '') + ' ▾'; $('tMode').classList.toggle('on', ui.mode !== 'write');
+    var tY = $('tDyn'); tY.textContent = (ui.mode === 'dyn' ? (ui.dyn || '✕') : 'mf') + ' ▾'; tY.style.fontStyle = 'italic'; tY.classList.toggle('on', ui.mode === 'dyn'); $('tRpt').classList.toggle('on', ui.mode === 'rpt');
   }
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
@@ -1291,6 +1314,33 @@ function playNote(ctx, out, inst, m, t, dur, vol) {
   var f = 440 * Math.pow(2, (m - 69) / 12);
   SYN[inst](ctx, out, f, t, dur, 0.16 * (LEVEL[inst] || 1), m);
 }
+var RPT_VF = { sg: 'SEGNO_LEFT', co: 'CODA_LEFT', fi: 'FINE', tc: 'TO_CODA', dc: 'DC', dcf: 'DC_AL_FINE', dcc: 'DC_AL_CODA', ds: 'DS', dsf: 'DS_AL_FINE', dsc: 'DS_AL_CODA' };
+/* orden de reproducción con repeticiones, casillas, D.C./D.S., Coda y Fine */
+function measureOrder(rp, nm) {
+  var out = [], i = 0, rs = 0, passes = {}, jumped = false, al = '', guard = 0, segno = -1, coda = -1, q;
+  for (q = 0; q < nm; q++) { var r = rp[q] || {}; if (r.mk === 'sg' && segno < 0) segno = q; if (r.mk === 'co' && coda < 0) coda = q; }
+  while (i < nm && guard++ < 400) {
+    var m = rp[i] || {};
+    if (m.rs && !jumped) rs = i;
+    if (m.v === 1 && (jumped || (passes[rs] || 0) >= 1)) { while (i < nm && (rp[i] || {}).v === 1) i++; continue; }
+    out.push(i);
+    if (jumped && m.mk === 'fi' && al === 'f') break;
+    if (jumped && m.mk === 'tc' && al === 'c' && coda >= 0) { i = coda; al = 'x'; continue; }
+    if (m.re && !jumped) { passes[rs] = (passes[rs] || 0) + 1; if (passes[rs] === 1) { i = rs; continue; } }
+    if (!jumped && /^(dc|ds)/.test(m.mk || '')) {
+      var tgt = m.mk.charAt(1) === 'c' ? 0 : segno;
+      if (tgt >= 0) { jumped = true; al = /f$/.test(m.mk) ? 'f' : /c$/.test(m.mk) ? 'c' : ''; i = tgt; continue; }
+    }
+    i++;
+  }
+  return out;
+}
+function playCols() {
+  var part = partition(S.cols, TIMES[S.time].b), res = [];
+  if (!S.rp || !Object.keys(S.rp).length) return S.cols.map(function (c, i) { return i; });
+  measureOrder(S.rp, part.ms.length).forEach(function (k) { (part.ms[k] || []).forEach(function (i) { res.push(i); }); });
+  return res;
+}
 var DYV = { pp: 0.35, p: 0.55, mp: 0.78, mf: 1, f: 1.3, ff: 1.65, fp: 1, sfz: 1.7 };
 function togglePlay(reuse) {
   if (playing) { stopPlay(); return; }
@@ -1300,8 +1350,8 @@ function togglePlay(reuse) {
   var master = ctx.createGain(), comp = ctx.createDynamicsCompressor(); master.gain.value = 0.9; master.connect(comp); comp.connect(ctx.destination);
   var spq = 60 / (info.bpm || 76), inst = info.inst || 'piano', ev = [], tt = 0, timers = [];
   var curDy = 'mf';
-  S.cols.forEach(function (c, i) {
-    var dur = DUR[c.d].b * spq; if (c.dy && DYV[c.dy]) curDy = c.dy;
+  playCols().forEach(function (i) {
+    var c = S.cols[i], dur = DUR[c.d].b * spq; if (c.dy && DYV[c.dy]) curDy = c.dy;
     c.v.forEach(function (e, vi) {
       if (!e || e.r || e.h) return;
       var prev = null; for (var q = i - 1; q >= 0; q--) { var pe = S.cols[q].v[vi]; if (!pe) break; if (pe.h) continue; prev = pe; break; }
@@ -1736,5 +1786,5 @@ try {
 } catch (e) { }
 refresh();
 if (location.hash.indexOf('#ej=') === 0) loadCode(location.hash);
-window.__lm3 = { T: T, setLang: setLang, penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, parseSpeech: parseSpeech };
+window.__lm3 = { measureOrder: measureOrder, T: T, setLang: setLang, penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, parseSpeech: parseSpeech };
 })();
