@@ -612,6 +612,13 @@ function onClick(p, right) {
     } else {
       msg(layout.band ? 'Escribe los acordes en orden: el siguiente va en el compás sombreado.' : 'Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».');
     }
+  } else if (mode === 'from') {
+    if (h.col == null) { msg('Haz clic sobre un acorde del compás desde el que quieres escuchar.'); return; }
+    var mf = -1; layout.part.ms.forEach(function (m, q) { if (m.indexOf(h.col) >= 0) mf = q; });
+    if (mf < 0) return;
+    $('nFrom').value = mf + (S.pickup ? 0 : 1); $('nTo').value = '';
+    if (playing) stopPlay();
+    ui.mode = 'write'; syncUI(); togglePlay();
   } else if (mode === 'rpt') {
     if (h.col == null) { msg('Haz clic sobre un acorde del compás al que va la marca.'); return; }
     var mk0 = -1; layout.part.ms.forEach(function (m, q) { if (m.indexOf(h.col) >= 0) mk0 = q; });
@@ -1366,6 +1373,12 @@ function measureOrder(rp, nm) {
 }
 function playCols() {
   var part = partition(S.cols, TIMES[S.time].b), res = [];
+  var fa = parseInt($('nFrom').value, 10), fb = parseInt($('nTo').value, 10);
+  if (fa > 0 || fb > 0) {
+    var off = S.pickup ? 0 : 1, a0 = fa > 0 ? fa - off : 0, b0 = fb > 0 ? fb - off : part.ms.length - 1;
+    for (var q = Math.max(0, a0); q <= Math.min(part.ms.length - 1, b0); q++) (part.ms[q] || []).forEach(function (i) { res.push(i); });
+    if (res.length) return res;
+  }
   if (!S.rp || !Object.keys(S.rp).length) return S.cols.map(function (c, i) { return i; });
   measureOrder(S.rp, part.ms.length).forEach(function (k) { (part.ms[k] || []).forEach(function (i) { res.push(i); }); });
   return res;
