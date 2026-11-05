@@ -325,6 +325,7 @@ var I18N_P = [
 var I18N_K = {Do: 'C', Re: 'D', Mi: 'E', Fa: 'F', Sol: 'G', La: 'A', Si: 'B'};
 var I18N_DU = {redonda: 'whole note', blanca: 'half note', negra: 'quarter note', corchea: 'eighth note', semicorchea: 'sixteenth note'};
 var I18N_T = [
+  [/Tresillo de (blanca|negra|corchea|semicorchea)/g, function (m, n) { return { blanca: 'Half', negra: 'Quarter', corchea: 'Eighth', semicorchea: 'Sixteenth' }[n] + '-note triplet'; }],
   [/ \(la semicorchea con puntillo no está disponible\)/g, " (the dotted sixteenth is not available)"],
   [/ \(la redonda con puntillo no está disponible\)/g, " (the dotted whole note is not available)"],
   [/cabeza llena/g, "filled head"], [/cabeza vacía/g, "empty head"], [/sin plica/g, "no stem"],
