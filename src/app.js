@@ -60,7 +60,7 @@ var EPS = 1e-6;
 var W = 960, SYSH = 290, TOPPAD = 76, GAP = 56, LEFT = 54, RIGHT = 26;
 var S = newState();
 var info = { name: '', group: '', date: today(), inst: 'piano', bpm: 76 };
-var ui = { voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
+var ui = { dyn: 'mf', voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
 var EX = { list: [], i: 0 };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
@@ -167,7 +167,7 @@ function normalize() {
   if (!S.lock) {
     while (S.cols.length) {
       var c = S.cols[S.cols.length - 1];
-      if (!c.v[0] && !c.v[1] && !c.v[2] && !c.v[3] && !c.rn && !c.cs) S.cols.pop(); else break;
+      if (!c.v[0] && !c.v[1] && !c.v[2] && !c.v[3] && !c.rn && !c.cs && !c.dy) S.cols.pop(); else break;
     }
   }
   var u = usedMeasures(partition(S.cols, TIMES[S.time].b));
@@ -372,6 +372,7 @@ function render(host, o) {
   });
   if (o.header) drawHeader(svg);
   if (o.sub) svgText(svg, LEFT, 22, o.sub, 15, { 'font-weight': '700' });
+  S.cols.forEach(function (c, ci) { var p = L.cols[ci]; if (!p || !c.dy) return; var sys = L.systems[p.sys]; svgText(svg, p.x, sys.yB + 40 + 28, c.dy, /\.$/.test(c.dy) ? 14 : 17, { 'text-anchor': 'middle', 'font-style': 'italic', 'font-weight': '700', 'font-family': 'Georgia, Times New Roman, serif' }); });
   if (o.labels) drawLabels(svg, L);
   return L;
 }
@@ -561,8 +562,7 @@ function onClick(p, right) {
         var pt = pitchAt(vi, p.y, h.sys, keyForHit(h)); nv = { l: pt.l, o: pt.o, a: pt.a };
         if (cur0 && !cur0.r && !cur0.h && cur0.l === nv.l && cur0.o === nv.o && cur0.a === nv.a) nv = null;
       }
-      var D = ui.own ? ui.dur : cc.d;
-      if (!ui.own && ui.dur !== cc.d && nv) msg('La nota usa la figura de ese acorde. Para otra figura en esta voz, activa «Ritmo propio por voz».');
+      var D = S.lock ? cc.d : ui.dur;
       tryEdit(function () { return writeNote(h.col, vi, nv, D); });
       ui.acc = 'auto'; syncUI();
     } else if (h.append) {
@@ -579,6 +579,10 @@ function onClick(p, right) {
     } else {
       msg(layout.band ? 'Escribe los acordes en orden: el siguiente va en el compás sombreado.' : 'Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».');
     }
+  } else if (mode === 'dyn') {
+    if (h.col == null) { msg('Haz clic sobre un acorde ya escrito para ponerle la dinámica.'); return; }
+    var dv = ui.dyn, c0 = S.cols[h.col];
+    mutate(function () { if (!dv || c0.dy === dv) delete c0.dy; else c0.dy = dv; });
   } else if (mode === 'tie') {
     if (h.col == null) { msg('Haz clic sobre una nota ya escrita para ligarla con la siguiente.'); return; }
     var t0 = startOf(h.col, vi), te = t0 >= 0 ? S.cols[t0].v[vi] : null;
@@ -593,7 +597,7 @@ function onClick(p, right) {
     }
     var te2 = -1, jj; for (jj = t0 + 1; jj < S.cols.length; jj++) if (!S.cols[jj].v[vi]) { te2 = jj; break; }
     if (te2 < 0) { msg('Escribe primero la nota siguiente (con la misma altura) y luego pon la ligadura.'); return; }
-    var Dn = ui.own ? ui.dur : S.cols[te2].d;
+    var Dn = S.lock ? S.cols[te2].d : ui.dur;
     if (tryEdit(function () { var er = writeNote(te2, vi, { l: te.l, o: te.o, a: te.a }, Dn); if (er) return er; var st2 = startOf(t0, vi); if (st2 >= 0 && S.cols[st2].v[vi]) S.cols[st2].v[vi].t = 1; return null; })) msg('Ligadura puesta: copié la misma nota en el acorde siguiente.', true);
   } else if (mode === 'dur') {
     if (S.lock) { msg('Este ejercicio tiene el ritmo fijo.'); return; }
@@ -993,6 +997,9 @@ function buildStaticUI() {
   });
   document.addEventListener('pointerdown', function (e) { if (!e.target.closest('#qbar .dd')) closeDD(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDD(); });
+  Array.prototype.forEach.call(document.querySelectorAll('#pDyn button'), function (b) {
+    b.addEventListener('click', function () { ui.dyn = b.dataset.dyn; ui.mode = 'dyn'; PEN.cur = null; syncUI(); });
+  });
   $('bNew').addEventListener('click', newExercise);
   $('bMic').addEventListener('click', function () { toggleMic(); });
   (function () {
@@ -1056,7 +1063,6 @@ function buildStaticUI() {
     mutate(function () { S.pickup = v; if (v && !cur) S.measures += 1; else if (!v && cur) S.measures = Math.max(1, S.measures - 1); });
   });
   $('sPer').addEventListener('change', function () { var n = parseInt(this.value, 10); mutate(function () { S.perSystem = n; }); });
-  $('cOwn').addEventListener('change', function () { ui.own = this.checked; msg(ui.own ? 'Ritmo propio activado: la figura elegida vale solo para la voz que escribes.' : '', true); });
   $('cLines').addEventListener('change', function () { var v = this.checked; mutate(function () { S.lines = v; }); });
   $('iName').addEventListener('input', function () { info.name = this.value; save(); });
   $('iGroup').addEventListener('input', function () { info.group = this.value; save(); });
@@ -1117,7 +1123,8 @@ function syncUI() {
   var tD = $('tDur'); if (tD) {
     tD.innerHTML = durIcon(ui.dur) + ' ▾'; tD.title = DUR[ui.dur].name;
     var tA = $('tAcc'); tA.textContent = (ui.acc === 'auto' ? '♯♭' : (ui.acc === 0 ? '♮' : accSym(ui.acc))) + ' ▾'; tA.classList.toggle('on', ui.acc !== 'auto');
-    var cm = document.querySelector('#bMode button[data-mode="' + ui.mode + '"]'); $('tMode').textContent = (cm ? cm.textContent : '') + ' ▾'; $('tMode').classList.toggle('on', ui.mode !== 'write');
+    var cm = document.querySelector('#bMode button[data-mode="' + ui.mode + '"]'); $('tMode').textContent = (ui.mode === 'dyn' ? 'Dinámica' : cm ? cm.textContent : '') + ' ▾'; $('tMode').classList.toggle('on', ui.mode !== 'write');
+    var tY = $('tDyn'); tY.textContent = (ui.mode === 'dyn' ? (ui.dyn || '✕') : 'mf') + ' ▾'; tY.style.fontStyle = 'italic'; tY.classList.toggle('on', ui.mode === 'dyn');
   }
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
@@ -1278,11 +1285,13 @@ function playSample(ctx, out, inst, m, t, dur) {
   if (piano) g.gain.setTargetAtTime(0.0001, end, rel / 3); else { g.gain.setValueAtTime(lv, Math.max(t + 0.04, end - 0.02)); g.gain.linearRampToValueAtTime(0.0001, end + rel); }
   src.connect(g); g.connect(out); src.start(t); src.stop(end + rel + 0.6);
 }
-function playNote(ctx, out, inst, m, t, dur) {
+function playNote(ctx, out, inst, m, t, dur, vol) {
+  if (vol && vol !== 1) { var vg = ctx.createGain(); vg.gain.value = vol; vg.connect(out); out = vg; }
   if (inst.indexOf('sf:') === 0) { playSample(ctx, out, inst, m, t, dur); return; }
   var f = 440 * Math.pow(2, (m - 69) / 12);
   SYN[inst](ctx, out, f, t, dur, 0.16 * (LEVEL[inst] || 1), m);
 }
+var DYV = { pp: 0.35, p: 0.55, mp: 0.78, mf: 1, f: 1.3, ff: 1.65, fp: 1, sfz: 1.7 };
 function togglePlay(reuse) {
   if (playing) { stopPlay(); return; }
   if (!S.cols.length) { msg('No hay nada que escuchar todavía.'); return; }
@@ -1290,15 +1299,16 @@ function togglePlay(reuse) {
   var ctx = reuse || new AC(); if (ctx.resume) ctx.resume();
   var master = ctx.createGain(), comp = ctx.createDynamicsCompressor(); master.gain.value = 0.9; master.connect(comp); comp.connect(ctx.destination);
   var spq = 60 / (info.bpm || 76), inst = info.inst || 'piano', ev = [], tt = 0, timers = [];
+  var curDy = 'mf';
   S.cols.forEach(function (c, i) {
-    var dur = DUR[c.d].b * spq;
+    var dur = DUR[c.d].b * spq; if (c.dy && DYV[c.dy]) curDy = c.dy;
     c.v.forEach(function (e, vi) {
       if (!e || e.r || e.h) return;
       var prev = null; for (var q = i - 1; q >= 0; q--) { var pe = S.cols[q].v[vi]; if (!pe) break; if (pe.h) continue; prev = pe; break; }
       if (prev && prev.t) return;
       var dd = e.d ? DUR[e.d].b * spq : dur, cur = e, j = nextStart(i, vi);
       while (cur.t && j >= 0) { var nx = S.cols[j].v[vi]; dd += (nx.d ? DUR[nx.d].b : DUR[S.cols[j].d].b) * spq; cur = nx; j = nextStart(j, vi); }
-      ev.push({ t: tt, dur: dd, m: midi(e), vi: vi });
+      ev.push({ t: tt, dur: dd, m: midi(e), vi: vi, vol: DYV[curDy] || 1 });
     });
     ev.push({ t: tt, hl: i });
     tt += dur;
@@ -1321,7 +1331,7 @@ function togglePlay(reuse) {
     while (ei < ev.length && start + ev[ei].t < now + 0.8) {
       var e = ev[ei++];
       if (e.hl != null) { (function (h, ms) { timers.push(setTimeout(function () { highlight(h); }, ms)); })(e.hl, Math.max(0, (start + e.t - ctx.currentTime) * 1000)); }
-      else playNote(ctx, master, instOf(e.vi), e.m, start + e.t, e.dur);
+      else playNote(ctx, master, instOf(e.vi), e.m, start + e.t, e.dur, e.vol);
     }
     if (ei < ev.length) st.pump = setTimeout(pump, 150);
   }
@@ -1521,7 +1531,7 @@ function genCode() {
 function newExercise() {
   if (S.cols.length && !confirm(T('¿Reiniciar este ejercicio? Se borrará lo que hay en pantalla (puedes recuperarlo con «Deshacer»).'))) return;
   var ns = newState(); ns.lines = S.lines;
-  pushHist(); S = ns; ui.voice = 0; ui.mode = 'write'; ui.own = false; $('cOwn').checked = false;
+  pushHist(); S = ns; ui.voice = 0; ui.mode = 'write';
   $('iCode').value = '';
   try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
   normalize(); refresh();
@@ -1610,7 +1620,7 @@ function putNoteVoice(vi, nv) {
   if (S.lock && vi === 0) { msg('La soprano es la melodía dada y no se puede modificar.'); return false; }
   var ci = -1, i;
   for (i = 0; i < S.cols.length; i++) if (!S.cols[i].v[vi]) { ci = i; break; }
-  if (ci >= 0) { var D = ui.own ? ui.dur : S.cols[ci].d; return tryEdit(function () { return writeNote(ci, vi, nv, D); }); }
+  if (ci >= 0) { var D = S.lock ? S.cols[ci].d : ui.dur; return tryEdit(function () { return writeNote(ci, vi, nv, D); }); }
   if (S.lock) { msg('Este ejercicio tiene el ritmo fijo: no hay más acordes donde escribir.'); return false; }
   if (!layout || !layout.band) { msg('Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».'); return false; }
   var part = layout.part, last = part.ms[part.ms.length - 1], acc = 0;
