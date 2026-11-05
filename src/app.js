@@ -986,6 +986,13 @@ function buildStaticUI() {
     var go = function () { var m = b.dataset.mode; ui.mode = (m === 'pen' && ui.mode === 'pen') ? 'write' : m; PEN.cur = null; syncUI(); };
     b.addEventListener('click', go);
   });
+  Array.prototype.forEach.call(document.querySelectorAll('#qbar .dd'), function (dd) {
+    var tr = dd.querySelector('.ddt'), pp = dd.querySelector('.ddp'); pp.hidden = true;
+    tr.addEventListener('click', function (e) { e.stopPropagation(); var open = pp.hidden; closeDD(); pp.hidden = !open; });
+    pp.addEventListener('click', function (e) { if (e.target.closest('button')) setTimeout(closeDD, 0); });
+  });
+  document.addEventListener('pointerdown', function (e) { if (!e.target.closest('#qbar .dd')) closeDD(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDD(); });
   $('bNew').addEventListener('click', newExercise);
   $('bMic').addEventListener('click', function () { toggleMic(); });
   (function () {
@@ -1107,6 +1114,11 @@ function syncUI() {
   Array.prototype.forEach.call(document.querySelectorAll('#bVoice button, #slots .svb'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
   Array.prototype.forEach.call(document.querySelectorAll('#bDur button'), function (b) { b.classList.toggle('on', b.dataset.d === ui.dur); });
   $('bRest').classList.toggle('on', ui.rest);
+  var tD = $('tDur'); if (tD) {
+    tD.innerHTML = durIcon(ui.dur) + ' ▾'; tD.title = DUR[ui.dur].name;
+    var tA = $('tAcc'); tA.textContent = (ui.acc === 'auto' ? '♯♭' : (ui.acc === 0 ? '♮' : accSym(ui.acc))) + ' ▾'; tA.classList.toggle('on', ui.acc !== 'auto');
+    var cm = document.querySelector('#bMode button[data-mode="' + ui.mode + '"]'); $('tMode').textContent = (cm ? cm.textContent : '') + ' ▾'; $('tMode').classList.toggle('on', ui.mode !== 'write');
+  }
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
   document.body.classList.toggle('pen-on', ui.mode === 'pen');
@@ -1125,6 +1137,7 @@ function fit() {
   st.style.transform = 'scale(' + scale + ')';
   vp.style.height = (layout.H * scale + 2) + 'px';
 }
+function closeDD() { Array.prototype.forEach.call(document.querySelectorAll('#qbar .ddp'), function (p) { p.hidden = true; }); }
 function setLang(l, user) {
   LANG = l === 'en' ? 'en' : 'es';
   try { localStorage.setItem('armonikus_lang', LANG); } catch (e) { }
@@ -1482,15 +1495,15 @@ function b64u(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '
 function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
 var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', ed: 'E', e: 'e', s: 's' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
 function packCode(o) {
-  var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '0' ? '' : a); }); return DCH[r[0]] + p + (r[2] ? '~' : ''); }).join('');
+  var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : ''); }); return DCH[r[0]] + p + (r[2] ? '~' : ''); }).join('');
   return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
 }
 function unpackCode(str) {
   var p = str.split('.'); if (p[0] !== 'A1' || (p.length !== 6 && p.length !== 7)) throw 0;
   var key = p[1].replace('s', '#'), tm = p[2].replace(/^(\d)(\d)$/, '$1/$2'), g = p[3].split('-');
   var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], pk: (+g[3] || 0) / 2, s: [] };
-  var re = /([wHhQqEes])(r|([a-g])(\d)([-+]?)(~?))/g, m, used = 0;
-  while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : 0), m[6] ? 1 : 0]); }
+  var re = /([wHhQqEes])(r|([a-g])(\d)([-+]{0,2})(~?))/g, m, used = 0;
+  while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : m[5] === '--' ? -2 : m[5] === '++' ? 2 : 0), m[6] ? 1 : 0]); }
   if (used !== p[5].length) throw 0;
   if (p.length === 7) { o.kc = {}; p[6].split(',').forEach(function (x) { var q = /^(\d+):([A-Ga-g][sb]?m?)$/.exec(x); if (!q) throw 0; o.kc[+q[1]] = q[2].replace('s', '#'); }); }
   return o;

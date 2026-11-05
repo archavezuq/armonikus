@@ -90,6 +90,12 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
 #langSw{float:right;display:flex;gap:0;margin:2px 0 0 8px}#langSw button{padding:3px 10px;font-size:12px;font-weight:700;border-radius:0;min-height:0}#langSw button:first-child{border-radius:6px 0 0 6px}#langSw button:last-child{border-radius:0 6px 6px 0;margin-left:-1px}#langSw button.on{background:#2a5db0;color:#fff;border-color:#2a5db0}
 #slots .slot.svb{width:30px;height:22px;padding:0;font:700 13px system-ui,Arial,sans-serif;border:2px solid var(--c);color:var(--c);background:rgba(255,255,255,.92);border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer}#slots .slot.svb.on{background:var(--c);color:#fff}#slots .slot.svb:hover{background:var(--c);color:#fff}
 #bdCur{position:fixed;pointer-events:none;border:1.5px solid #555;background:rgba(120,120,120,.22);border-radius:50%;z-index:50;transform:translate(-50%,-50%)}.bdl{font-size:12px;color:var(--mut);align-self:center}
+#qbar{position:sticky;top:0;z-index:40;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:rgba(255,255,255,.97);border:1px solid var(--line,#d5dbe3);border-radius:8px;padding:6px 8px;margin:6px 0;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+#qbar .qsp{flex:1}.dd{position:relative}
+.ddt{min-width:64px;display:inline-flex;align-items:center;gap:4px;font-weight:600}.ddt svg{height:26px;width:auto;vertical-align:middle}.ddt.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.ddp{width:max-content;position:absolute;top:calc(100% + 4px);left:0;z-index:60;background:#fff;border:1px solid #c0c8d3;border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.2);max-width:calc(100vw - 24px)}
+.ddp[hidden]{display:none!important}.ddp.col{display:flex;flex-direction:column;gap:4px;min-width:150px}.ddp.col button{text-align:left}
+.ddp .b{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
 
 </style>
 </head>
@@ -134,13 +140,9 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
     </div>
     <div class="row">
       <div class="grp"><span class="t">Voz</span><div class="b" id="bVoice"></div></div>
-      <div class="grp"><span class="t">Figura</span><div class="b" id="bDur"></div><label class="chk" title="Si está activado, la figura elegida vale solo para la voz que escribes y puede ser distinta a la de las otras voces"><input type="checkbox" id="cOwn"> Ritmo propio por voz</label></div>
-      <div class="grp"><span class="t">Silencio / alteración</span><div class="b"><button id="bRest" title="Escribir silencio">Silencio</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button></div></div>
-      <div class="grp"><span class="t">Herramienta</span><div class="b" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button><button data-mode="tie" title="Ligadura de prolongación: une una nota con la siguiente de la misma altura (por ejemplo, de un compás al siguiente)">Ligadura</button><button data-mode="pen" title="Dibuja la nota a mano con lápiz o dedo: cabeza, plica, corchete y puntillo">Lápiz ✎</button></div></div>
       <div class="grp"><span class="t">Voz</span><div class="b"><button id="bMic" title="Dicta la nota y la altura, por ejemplo «sol 4». También: «alto», «negra», «silencio», «deshacer»">🎤 Dictar notas</button><select id="sMicLang" title="Idioma del dictado"><option value="es-CO">Español</option><option value="en-US">English</option></select></div></div>
     </div>
     <div class="row">
-      <div class="grp"><span class="t">Edición</span><div class="b"><button id="bUndo">Deshacer</button><button id="bRedo">Rehacer</button></div></div>
       <div class="grp"><span class="t">Escuchar</span><div class="b"><button id="bPlay">▶ Escuchar</button><select id="sInst" title="Instrumento"></select><label class="chk" title="Negras por minuto">Tempo <input type="number" id="nBpm" min="40" max="160" value="76"></label></div></div>
       <div class="grp"><span class="t">Revisión</span><div class="b"><button id="bCheck">Revisar errores</button></div></div>
       <div class="grp"><span class="t">Entregar</span><div class="b"><button id="bPng" class="big">Descargar imagen (PNG)</button><button id="bPrint">Imprimir / guardar PDF</button></div></div>
@@ -152,11 +154,19 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   </div>
 
   <div id="msg" role="status"></div>
+  <div id="qbar">
+    <div class="dd"><button class="ddt" id="tDur" title="Figura">♩ ▾</button><div class="ddp" id="pDur"><div class="b" id="bDur"></div></div></div>
+    <button id="bRest" title="Escribir silencio">Silencio</button>
+    <div class="dd"><button class="ddt" id="tAcc" title="Alteración">♯♭ ▾</button><div class="ddp" id="pAcc"><div class="b"><button class="ac" data-acc="-2" title="Doble bemol">𝄫</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button><button class="ac" data-acc="2" title="Doble sostenido">𝄪</button></div></div></div>
+    <div class="dd"><button class="ddt" id="tMode" title="Herramienta">Escribir ▾</button><div class="ddp col" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button><button data-mode="tie" title="Ligadura de prolongación: une una nota con la siguiente de la misma altura (por ejemplo, de un compás al siguiente)">Ligadura</button><button data-mode="pen" title="Dibuja la nota a mano con lápiz o dedo: cabeza, plica, corchete y puntillo">Lápiz ✎</button></div></div>
+    <label class="chk" title="Si está activado, la figura elegida vale solo para la voz que escribes y puede ser distinta a la de las otras voces"><input type="checkbox" id="cOwn"> Ritmo propio por voz</label>
+    <span class="qsp"></span><button id="bUndo">Deshacer</button><button id="bRedo">Rehacer</button>
+  </div>
   <div id="exTabs" class="b" style="margin:6px 0"></div>
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v25</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v26</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>
@@ -370,12 +380,16 @@ var I18N_D = {
   "Líneas en grados mayores (IV, V…)": "Lines on major degrees (IV, V…)",
   "Voz": "Voice",
   "Figura": "Note value",
+  "Silencio / alteración": "Rest / accidental",
   "Si está activado, la figura elegida vale solo para la voz que escribes y puede ser distinta a la de las otras voces": "If on, the chosen note value applies only to the voice you are writing and can differ from the other voices",
   "Ritmo propio por voz": "Own rhythm per voice",
   "Silencio / alteración": "Rest / accidental",
   "Escribir silencio": "Write a rest",
   "Silencio": "Rest",
   "Bemol": "Flat",
+  "Doble bemol": "Double flat",
+  "Doble sostenido": "Double sharp",
+  "Alteración": "Accidental",
   "Becuadro": "Natural",
   "Sostenido": "Sharp",
   "Herramienta": "Tool",
@@ -1661,6 +1675,13 @@ function buildStaticUI() {
     var go = function () { var m = b.dataset.mode; ui.mode = (m === 'pen' && ui.mode === 'pen') ? 'write' : m; PEN.cur = null; syncUI(); };
     b.addEventListener('click', go);
   });
+  Array.prototype.forEach.call(document.querySelectorAll('#qbar .dd'), function (dd) {
+    var tr = dd.querySelector('.ddt'), pp = dd.querySelector('.ddp'); pp.hidden = true;
+    tr.addEventListener('click', function (e) { e.stopPropagation(); var open = pp.hidden; closeDD(); pp.hidden = !open; });
+    pp.addEventListener('click', function (e) { if (e.target.closest('button')) setTimeout(closeDD, 0); });
+  });
+  document.addEventListener('pointerdown', function (e) { if (!e.target.closest('#qbar .dd')) closeDD(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDD(); });
   $('bNew').addEventListener('click', newExercise);
   $('bMic').addEventListener('click', function () { toggleMic(); });
   (function () {
@@ -1782,6 +1803,11 @@ function syncUI() {
   Array.prototype.forEach.call(document.querySelectorAll('#bVoice button, #slots .svb'), function (b) { b.classList.toggle('on', parseInt(b.dataset.v, 10) === ui.voice); });
   Array.prototype.forEach.call(document.querySelectorAll('#bDur button'), function (b) { b.classList.toggle('on', b.dataset.d === ui.dur); });
   $('bRest').classList.toggle('on', ui.rest);
+  var tD = $('tDur'); if (tD) {
+    tD.innerHTML = durIcon(ui.dur) + ' ▾'; tD.title = DUR[ui.dur].name;
+    var tA = $('tAcc'); tA.textContent = (ui.acc === 'auto' ? '♯♭' : (ui.acc === 0 ? '♮' : accSym(ui.acc))) + ' ▾'; tA.classList.toggle('on', ui.acc !== 'auto');
+    var cm = document.querySelector('#bMode button[data-mode="' + ui.mode + '"]'); $('tMode').textContent = (cm ? cm.textContent : '') + ' ▾'; $('tMode').classList.toggle('on', ui.mode !== 'write');
+  }
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
   document.body.classList.toggle('pen-on', ui.mode === 'pen');
@@ -1800,6 +1826,7 @@ function fit() {
   st.style.transform = 'scale(' + scale + ')';
   vp.style.height = (layout.H * scale + 2) + 'px';
 }
+function closeDD() { Array.prototype.forEach.call(document.querySelectorAll('#qbar .ddp'), function (p) { p.hidden = true; }); }
 function setLang(l, user) {
   LANG = l === 'en' ? 'en' : 'es';
   try { localStorage.setItem('armonikus_lang', LANG); } catch (e) { }
@@ -2157,15 +2184,15 @@ function b64u(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '
 function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
 var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', ed: 'E', e: 'e', s: 's' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
 function packCode(o) {
-  var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '0' ? '' : a); }); return DCH[r[0]] + p + (r[2] ? '~' : ''); }).join('');
+  var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : ''); }); return DCH[r[0]] + p + (r[2] ? '~' : ''); }).join('');
   return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
 }
 function unpackCode(str) {
   var p = str.split('.'); if (p[0] !== 'A1' || (p.length !== 6 && p.length !== 7)) throw 0;
   var key = p[1].replace('s', '#'), tm = p[2].replace(/^(\d)(\d)$/, '$1/$2'), g = p[3].split('-');
   var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], pk: (+g[3] || 0) / 2, s: [] };
-  var re = /([wHhQqEes])(r|([a-g])(\d)([-+]?)(~?))/g, m, used = 0;
-  while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : 0), m[6] ? 1 : 0]); }
+  var re = /([wHhQqEes])(r|([a-g])(\d)([-+]{0,2})(~?))/g, m, used = 0;
+  while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : m[5] === '--' ? -2 : m[5] === '++' ? 2 : 0), m[6] ? 1 : 0]); }
   if (used !== p[5].length) throw 0;
   if (p.length === 7) { o.kc = {}; p[6].split(',').forEach(function (x) { var q = /^(\d+):([A-Ga-g][sb]?m?)$/.exec(x); if (!q) throw 0; o.kc[+q[1]] = q[2].replace('s', '#'); }); }
   return o;
