@@ -829,6 +829,7 @@ function penFinish() {
     undo(); strokes = PEN.last.strokes.concat(strokes); r = recognizePen(strokes);
   }
   if (r.err) { msg(r.err); return; }
+  if (DUR[ui.dur] && DUR[ui.dur].tri) { if (!r.stem || r.dur === TRI_BASE[ui.dur]) r.dur = ui.dur; else if (TRI_OF[r.dur]) r.dur = TRI_OF[r.dur]; }
   ui.dur = r.dur; ui.rest = false; syncUI();
   var m = ui.mode, before = JSON.stringify(S); ui.mode = 'write'; onClick({ x: r.cx, y: r.cy }, false); ui.mode = m; syncUI();
   var after = JSON.stringify(S), prev = $('msg').textContent;
@@ -1654,6 +1655,7 @@ var NUM_WORDS = { cero: 0, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
 var NUM_ALIAS = { to: 2, too: 2, tu: 2, tree: 3, free: 3, for: 4, fore: 4, won: 1, juan: 1, sex: 6, cinko: 5 };
 var ACC_WORDS = { sostenido: 1, sharp: 1, bemol: -1, flat: -1, becuadro: 0, natural: 0 };
 var DUR_WORDS = { redonda: 'w', blanca: 'h', negra: 'q', corchea: 'e', semicorchea: 's', whole: 'w', half: 'h', quarter: 'q', eighth: 'e', sixteenth: 's' };
+var TRI_OF = { h: 'ht', q: 'qt', e: 'et', s: 'st' }, TRI_BASE = { ht: 'h', qt: 'q', et: 'e', st: 's' };
 var DOT_OF = { h: 'hd', q: 'qd', e: 'ed' };
 var VOICE_WORDS = { soprano: 0, alto: 1, tenor: 2, bajo: 3, bass: 3, base: 3 };
 function parseSpeech(text) {
@@ -1681,6 +1683,11 @@ function parseSpeech(text) {
       else if (a === null && j < n && ACC_WORDS.hasOwnProperty(tk[j])) { a = ACC_WORDS[tk[j]]; j++; if (numAt(j) !== null) { o = numAt(j); j++; } }
       out.push({ t: 'note', l: key, a: a, o: o }); i = j - 1;
     } else if (VOICE_WORDS.hasOwnProperty(w)) out.push({ t: 'voice', v: VOICE_WORDS[w] });
+    else if ((w === 'tresillo' || w === 'tresillos' || w === 'triplet' || w === 'triplets') && (function () { var k = i + 1; if (tk[k] === 'de' || tk[k] === 'of') k++; return DUR_WORDS.hasOwnProperty(tk[k]) && TRI_OF[DUR_WORDS[tk[k]]] ? k : -1; })() > 0) {
+      var k2 = i + 1; if (tk[k2] === 'de' || tk[k2] === 'of') k2++;
+      out.push({ t: 'dur', d: TRI_OF[DUR_WORDS[tk[k2]]] }); i = k2;
+    }
+    else if (DUR_WORDS.hasOwnProperty(w) && TRI_OF[DUR_WORDS[w]] && (tk[i + 1] === 'triplet' || tk[i + 1] === 'tresillo')) { out.push({ t: 'dur', d: TRI_OF[DUR_WORDS[w]] }); i++; }
     else if (DUR_WORDS.hasOwnProperty(w)) {
       var dd = DUR_WORDS[w], k = i + 1; if (tk[k] === 'con') k++;
       if ((tk[k] === 'puntillo' || tk[k] === 'dot' || tk[k] === 'dotted') && DOT_OF[dd]) { dd = DOT_OF[dd]; i = k; }
