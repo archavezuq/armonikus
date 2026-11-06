@@ -134,6 +134,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
       <label class="grp"><span class="t">Anacrusa (antecompás)</span><select id="sPick"><option value="0">Sin anacrusa</option></select></label>
       <label class="grp"><span class="t">N.º de compases</span><input type="number" id="nMeas" min="1" max="16" value="4"></label>
       <label class="grp"><span class="t">Compases por sistema</span><select id="sPer"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option></select></label>
+      <div class="grp" id="gTc"><span class="t">Cambio de compás</span><div class="b"><label class="chk" title="Desde este compás (el número que se ve en pantalla) cambia la signatura de compás">Desde el compás <input type="number" id="nTcM" min="2" max="16" value="2" style="width:56px"></label><select id="sTcT" title="Nuevo compás"></select><button id="bTcAdd" title="Añadir el cambio de compás">Añadir</button></div><div id="tcList" class="kcl"></div></div>
       <div class="grp" id="gKc"><span class="t">Cambio de tonalidad</span><div class="b"><label class="chk" title="Desde este compás (el número que se ve en pantalla) cambia la armadura">Desde el compás <input type="number" id="nKcM" min="2" max="16" value="2" style="width:56px"></label><select id="sKcK" title="Nueva tonalidad"></select><button id="bKcAdd" title="Añadir el cambio de tonalidad">Añadir</button></div><div id="kcList" class="kcl"></div></div>
       <div class="grp" id="gBr"><span class="t">Doble barra y nuevo ejercicio (en esta hoja)</span><div class="b"><label class="chk" title="La doble barra va al final de este compás (el número que se ve en pantalla)">Después del compás <input type="number" id="nBrM" min="1" max="16" value="2" style="width:56px"></label><select id="sBrK" title="Tonalidad del ejercicio que empieza después de la doble barra"></select><select id="sBrP" title="Anacrusa del ejercicio que empieza después de la doble barra"><option value="0">Sin anacrusa</option></select><button id="bBrAdd" title="Pone la doble barra y, si lo eliges, cambia la tonalidad y empieza con anacrusa">Añadir</button></div><div id="brList" class="kcl"></div></div>
       <label class="chk"><input type="checkbox" id="cLines" checked> Líneas en grados mayores (IV, V…)</label>
@@ -167,7 +168,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v32</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v33</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>
@@ -385,6 +386,12 @@ var I18N_D = {
   "N.º de compases": "No. of measures",
   "Compases por sistema": "Measures per system",
   "Cambio de tonalidad": "Key change",
+  "Cambio de compás": "Time signature change",
+  "Desde este compás (el número que se ve en pantalla) cambia la signatura de compás": "The time signature changes from this measure (the number shown on screen)",
+  "Nuevo compás": "New time signature",
+  "Añadir el cambio de compás": "Add the time signature change",
+  "Quitar este cambio de compás": "Remove this time signature change",
+  "Con ese compás algún acorde cruzaría la barra. Cambia o borra figuras primero.": "With that time signature some chord would cross the barline. Change or erase note values first.",
   "Desde este compás (el número que se ve en pantalla) cambia la armadura": "The key signature changes from this measure (the number shown on screen)",
   "Desde el compás": "From measure",
   "Nueva tonalidad": "New key",
@@ -621,6 +628,8 @@ var I18N_P = [
   [/^Esa nota queda fuera del pentagrama de (.+) \((.+)\)\.$/, "That note falls outside the staff for $1 ($2)."],
   [/^Reconocí: (.*) Si falta el corchete o el puntillo, dibújalo ahora junto a la nota; si no, «Deshacer»\.$/, "Recognized: $1 If the flag or dot is missing, draw it now next to the note; otherwise press «Undo»."],
   [/^No vi la cabeza de la nota\. Dibuja un óvalo vacío \(blanca, redonda\) o un óvalo relleno o rayado \(negra, corchea\)\. \[Vi: (.*)\]$/, "I didn't see the note head. Draw an empty oval (half, whole) or a filled or scribbled oval (quarter, eighth). [Saw: $1]"],
+  [/^El cambio de compás puede empezar desde el compás (\d+) en adelante\.$/, "The time signature change can start from measure $1 onward."],
+  [/^Antes de ese compás ya está en (\d\/\d)\.$/, "Before that measure it is already in $1."],
   [/^El cambio de tonalidad puede empezar desde el compás (\d+) en adelante\.$/, "The key change can start from measure $1 onward."],
   [/^El ejercicio tiene (\d+) compases\. Aumenta «N\.º de compases» o elige un compás menor\.$/, "The exercise has $1 measures. Increase «No. of measures» or choose an earlier measure."],
   [/^Antes de ese compás ya está en (.+)\.$/, "Before that measure it is already in $1."],
@@ -795,7 +804,7 @@ var EX = { list: [], i: 0 };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
 function newState() {
-  return { etitle: '', key: 'C', kc: {}, time: '4/4', measures: 4, pickup: 0, br: {}, rp: {}, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
+  return { etitle: '', key: 'C', kc: {}, time: '4/4', measures: 4, pickup: 0, br: {}, rp: {}, tc: {}, perSystem: 4, cols: [], lines: true, lock: false, chk: true };
 }
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function $(id) { return document.getElementById(id); }
@@ -828,16 +837,21 @@ function vfKey(p, alts) {
   return s + '/' + p.o;
 }
 /* doble barra elegida: S.br = { índice del compás (desde 0) que termina en doble barra : anacrusa (en negras) del compás siguiente, 0 = sin anacrusa } */
-function brPk(b) { var v = S.br && S.br[b]; return (v > 0 && v < TIMES[S.time].b) ? v : 0; }
+/* cambios de compás (signatura de medida): S.tc = { n.º de compás (como se ve en pantalla) : '3/4' }, vale desde ese compás en adelante */
+function tcList() { var tc = S.tc || {}; return Object.keys(tc).map(Number).filter(function (d) { return d >= 1 && TIMES[tc[d]]; }).sort(function (a, b) { return a - b; }); }
+function timeAtM(k) { var d = measNum(k), t = S.time; tcList().forEach(function (x) { if (x <= d) t = S.tc[x]; }); return t; }
+function tlen(k) { return TIMES[timeAtM(k)].b; }
+function tcAt(k) { return k > 0 && timeAtM(k) !== timeAtM(k - 1); }
+function brPk(b) { var v = S.br && S.br[b]; return (v > 0 && v < tlen(b + 1)) ? v : 0; }
 function hasBr(b) { return !!(S.br && Object.prototype.hasOwnProperty.call(S.br, b)); }
-function mlenAt(k, mlen) { mlen = mlen || TIMES[S.time].b; if (k === 0 && S.pickup) return S.pickup; if (k > 0 && brPk(k - 1)) return brPk(k - 1); return mlen; }
+function mlenAt(k) { if (k === 0 && S.pickup) return S.pickup; if (k > 0 && brPk(k - 1)) return brPk(k - 1); return tlen(k); }
 function brList() { return Object.keys(S.br || {}).map(Number).sort(function (a, b) { return a - b; }); }
 var CUR_K = 0, NM = {}, LOADING = false;
 function partition(cols, mlen, pk) {
   if (pk === undefined) pk = S.pickup || 0;
   var ms = [[]], acc = 0, ok = true, bad = -1;
   cols.forEach(function (c, i) {
-    var b = DUR[c.d].b, ml = (ms.length === 1 && pk) ? pk : (ms.length > 1 && brPk(ms.length - 2)) ? brPk(ms.length - 2) : mlen;
+    var b = DUR[c.d].b, ml = (ms.length === 1 && pk) ? pk : (ms.length > 1 && brPk(ms.length - 2)) ? brPk(ms.length - 2) : tlen(ms.length - 1);
     if (acc + b > ml + EPS) { ok = false; if (bad < 0) bad = i; }
     ms[ms.length - 1].push(i); acc += b;
     if (Math.abs(acc - ml) < EPS || acc > ml) { ms.push([]); acc = 0; }
@@ -951,7 +965,7 @@ function msg(t, ok) { var m = $('msg'); m.textContent = T(t) || ''; m.className 
 /* ================= dibujo ================= */
 function styleNote(n, o, vi) { if (o.color) { var c = VOICES[vi].c; n.setStyle({ fillStyle: c, strokeStyle: c }); } }
 function makeBeams(idxs, notes, kinds, o, vi, bs) {
-  var bl = TIMES[S.time].g, pos = TIMES[S.time].b - mlenAt(CUR_K), groups = {}, out = [];
+  var bl = TIMES[timeAtM(CUR_K)].g, pos = tlen(CUR_K) - mlenAt(CUR_K), groups = {}, out = [];
   bs.forEach(function (b, i) {
     if (kinds[i]) { var g = Math.floor((pos + EPS) / bl); (groups[g] = groups[g] || []).push(i); }
     pos += b;
@@ -973,7 +987,7 @@ function padsFor(idxs, mlen) {
   return out;
 }
 function mkVoices(idxs, vis, clef, o, alts, pads) {
-  var T = TIMES[S.time], voices = [], notes = [], beams = [], tuplets = [];
+  var T = TIMES[timeAtM(CUR_K)], voices = [], notes = [], beams = [], tuplets = [];
   vis.forEach(function (vi) {
     var arr = [], kinds = [], bs = [], keys = [];
     idxs.forEach(function (ci) {
@@ -1035,9 +1049,9 @@ function render(host, o) {
     var top = headerH + s * SYSH, yT = top + TOPPAD, yB = yT + 40 + GAP;
     var m0 = s * per, m1 = Math.min(N, m0 + per), cnt = m1 - m0;
     var kM0 = keyAtM(m0), kPrev = m0 > 0 ? keyAtM(m0 - 1) : null, cn0 = (kPrev && kPrev !== kM0) ? cancelCount(kPrev, kM0) : 0;
-    var pad0 = 46 + 10 * (Math.abs(keyInfo(kM0)[3]) + cn0) + (s === 0 ? 30 : 0);
+    var pad0 = 46 + 10 * (Math.abs(keyInfo(kM0)[3]) + cn0) + ((s === 0 || tcAt(m0)) ? 30 : 0);
     var extra = {}, exTot = 0, k;
-    for (k = m0 + 1; k < m1; k++) if (keyAtM(k) !== keyAtM(k - 1)) { extra[k] = 10 * (Math.abs(keyInfo(keyAtM(k))[3]) + cancelCount(keyAtM(k - 1), keyAtM(k))) + 16; exTot += extra[k]; }
+    for (k = m0 + 1; k < m1; k++) { var ex = 0; if (keyAtM(k) !== keyAtM(k - 1)) ex += 10 * (Math.abs(keyInfo(keyAtM(k))[3]) + cancelCount(keyAtM(k - 1), keyAtM(k))) + 16; if (tcAt(k)) ex += 30; if (ex) { extra[k] = ex; exTot += ex; } }
     var avail = W - LEFT - RIGHT - pad0 - exTot, wts = [], tot = 0;
     var padsK = {};
     for (k = m0; k < m1; k++) { padsK[k] = padsFor(part.ms[k] || [], mlenAt(k, mlen)); var w = Math.max(3, (part.ms[k] || []).length + padsK[k].length); wts.push(w); tot += w; }
@@ -1049,11 +1063,14 @@ function render(host, o) {
       var tr = new VF.Stave(x, yT, mw, stOpt), ba = new VF.Stave(x, yB, mw, stOpt);
       if (k === m0) {
         tr.addClef('treble').addKeySignature(kM0, cn0 ? kPrev : undefined); ba.addClef('bass').addKeySignature(kM0, cn0 ? kPrev : undefined);
-        if (s === 0) { tr.addTimeSignature(TIMES[S.time].sym); ba.addTimeSignature(TIMES[S.time].sym); }
+        if (s === 0 || tcAt(k)) { tr.addTimeSignature(TIMES[timeAtM(k)].sym); ba.addTimeSignature(TIMES[timeAtM(k)].sym); }
       }
       if (k > m0 && extra[k] !== undefined) {
-        tr.addKeySignature(kk, keyAtM(k - 1)); ba.addKeySignature(kk, keyAtM(k - 1));
-        svgText(svg, x + 5, yB + 40 + 24, keyLabel(kk), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
+        if (keyAtM(k) !== keyAtM(k - 1)) {
+          tr.addKeySignature(kk, keyAtM(k - 1)); ba.addKeySignature(kk, keyAtM(k - 1));
+          svgText(svg, x + 5, yB + 40 + 24, keyLabel(kk), 16, { 'font-family': 'Georgia, Times New Roman, serif' });
+        }
+        if (tcAt(k)) { tr.addTimeSignature(TIMES[timeAtM(k)].sym); ba.addTimeSignature(TIMES[timeAtM(k)].sym); }
       }
       var isLast = (o.last !== false), dbl = (k < N - 1 && hasBr(k));
       if (dbl) { tr.setEndBarType(VF.Barline.type.DOUBLE); ba.setEndBarType(VF.Barline.type.DOUBLE); }
@@ -1794,6 +1811,18 @@ function buildStaticUI() {
     mutate(function () { if (!S.kc) S.kc = {}; S.kc[d] = key; });
     msg('Desde el compás ' + d + ': ' + keyInfo(key)[1] + '.', true);
   });
+  $('sTcT').innerHTML = $('sTime').innerHTML;
+  $('bTcAdd').addEventListener('click', function () {
+    var d = parseInt($('nTcM').value, 10), tm = $('sTcT').value, min = S.pickup ? 1 : 2, tot = S.measures - (S.pickup ? 1 : 0);
+    if (!(d >= min)) { msg('El cambio de compás puede empezar desde el compás ' + min + ' en adelante.'); return; }
+    if (d > tot) { msg('El ejercicio tiene ' + tot + ' compases. Aumenta «N.º de compases» o elige un compás menor.'); return; }
+    var sn = JSON.stringify(S.tc || {}), had = S.tc && S.tc[d];
+    if (!had && timeAtM((S.pickup ? d : d - 1) - 1) === tm) { msg('Antes de ese compás ya está en ' + tm + '.'); return; }
+    if (!S.tc) S.tc = {}; S.tc[d] = tm; var ok = partition(S.cols, 0).ok; S.tc = JSON.parse(sn);
+    if (!ok) { msg('Con ese compás algún acorde cruzaría la barra. Cambia o borra figuras primero.'); return; }
+    mutate(function () { if (!S.tc) S.tc = {}; S.tc[d] = tm; });
+    msg('Desde el compás ' + d + ': ' + tm + '.', true);
+  });
   $('sBrK').innerHTML = '<option value="">La misma tonalidad</option>'; $('sBrK').appendChild(g1.cloneNode(true)); $('sBrK').appendChild(g2.cloneNode(true));
   $('bBrAdd').addEventListener('click', function () {
     var d = parseInt($('nBrM').value, 10), key = $('sBrK').value, pk = parseFloat($('sBrP').value) || 0, mlen = TIMES[S.time].b, tot = S.measures - (S.pickup ? 1 : 0);
@@ -1880,6 +1909,16 @@ function syncUI() {
     var b = document.createElement('button'); b.textContent = 'Compás ' + d + ': ' + keyInfo(S.kc[d])[1] + ' ✕'; b.title = 'Quitar este cambio de tonalidad'; b.disabled = !!S.lock;
     b.addEventListener('click', function () { mutate(function () { delete S.kc[d]; }); }); kl.appendChild(b);
   });
+  var tl = $('tcList'); tl.innerHTML = '';
+  tcList().forEach(function (d) {
+    var b = document.createElement('button'); b.textContent = 'Compás ' + d + ': ' + S.tc[d] + ' ✕'; b.title = 'Quitar este cambio de compás'; b.disabled = !!S.lock;
+    b.addEventListener('click', function () {
+      var sn = JSON.stringify(S.tc); delete S.tc[d]; var ok = partition(S.cols, 0).ok; S.tc = JSON.parse(sn);
+      if (!ok) { msg('Con ese compás algún acorde cruzaría la barra. Cambia o borra figuras primero.'); return; }
+      mutate(function () { delete S.tc[d]; });
+    }); tl.appendChild(b);
+  });
+  $('nTcM').min = S.pickup ? 1 : 2; ['sTcT', 'nTcM', 'bTcAdd'].forEach(function (id) { $(id).disabled = !!S.lock; });
   $('nKcM').min = S.pickup ? 1 : 2;
   $('sTime').value = S.time; $('nMeas').value = S.measures - (S.pickup ? 1 : 0); fillPick(); $('sPer').value = S.perSystem; $('cLines').checked = !!S.lines;
   $('iName').value = info.name; $('iGroup').value = info.group; $('iDate').value = info.date; if (!$('sInst').querySelector('option[value="' + info.inst + '"]')) info.inst = 'piano'; $('sInst').value = info.inst || 'piano'; $('nBpm').value = info.bpm || 76;
@@ -2154,7 +2193,7 @@ function highlight(ci) {
 function runChecks() {
   var cols = S.cols, mlen = TIMES[S.time].b, part = partition(cols, mlen), where = {}, out = [], pos = {};
   var pk = S.pickup || 0;
-  part.ms.forEach(function (m, k) { var a = mlen - mlenAt(k, mlen); m.forEach(function (i) { where[i] = (pk ? (k === 0 ? 'Anacrusa' : 'Compás ' + k) : 'Compás ' + (k + 1)) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
+  part.ms.forEach(function (m, k) { var a = tlen(k) - mlenAt(k); m.forEach(function (i) { where[i] = (pk ? (k === 0 ? 'Anacrusa' : 'Compás ' + k) : 'Compás ' + (k + 1)) + ', tiempo ' + (Math.floor(a + EPS) + 1); a += DUR[cols[i].d].b; }); });
   var kOf = colKeys(part);
   var EFF = new Map(); cols.forEach(function (c, i) { EFF.set(c, [0, 1, 2, 3].map(function (v) { return effEntry(cols, i, v); })); });
   function np(c, vi) { var e = EFF.get(c)[vi]; return e && !e.r ? e : null; }
@@ -2307,7 +2346,7 @@ function isLk(vi) { return !!S.lock && (vi === 0 || (S.lockV || []).indexOf(vi) 
 function firstFree() { for (var i = 0; i < 4; i++) if (!isLk(i)) return i; return 0; }
 function packCode(o) {
   var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : ''); }); return DCH[r[0]] + p + (r[2] ? '~' : ''); }).join('');
-  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.x ? Object.keys(o.x).map(function (vi) { return '.V' + vi + o.x[vi].map(function (r) { return r === null ? '_' : r === 'r' ? 'r' : r.replace(/^([a-g])(\d):(-?\d)(~?)$/, function (_, l, oc, a, t) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : '') + t; }); }).join(''); }).join('') : '') + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
+  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.tc && Object.keys(o.tc).length ? '.T' + Object.keys(o.tc).map(function (d) { return d + ':' + o.tc[d].replace('/', ''); }).join(',') : '') + (o.x ? Object.keys(o.x).map(function (vi) { return '.V' + vi + o.x[vi].map(function (r) { return r === null ? '_' : r === 'r' ? 'r' : r.replace(/^([a-g])(\d):(-?\d)(~?)$/, function (_, l, oc, a, t) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : '') + t; }); }).join(''); }).join('') : '') + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
 }
 function unpackCode(str) {
   var p = str.split('.'); if (p[0] !== 'A1' || p.length < 6 || p.length > 10) throw 0;
@@ -2317,8 +2356,9 @@ function unpackCode(str) {
   while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : m[5] === '--' ? -2 : m[5] === '++' ? 2 : 0), m[6] ? 1 : 0]); }
   if (used !== p[5].length) throw 0;
   for (var si = 6; si < p.length; si++) {
-    var vm = /^V([123])(.*)$/.exec(p[si]);
-    if (vm) {
+    var tm0 = /^T(\d+:\d\d(?:,\d+:\d\d)*)$/.exec(p[si]), vm = /^V([123])(.*)$/.exec(p[si]);
+    if (tm0) { o.tc = {}; tm0[1].split(',').forEach(function (x) { var q = x.split(':'); o.tc[+q[0]] = q[1].replace(/^(\d)(\d)$/, '$1/$2'); }); }
+    else if (vm) {
       o.x = o.x || {}; var arr = [], re2 = /(_|r|([a-g])(\d)([-+]{0,2})(~?))/g, m2, u2 = 0;
       while ((m2 = re2.exec(vm[2]))) { u2 += m2[0].length; arr.push(m2[1] === '_' ? null : m2[1] === 'r' ? 'r' : m2[2] + m2[3] + ':' + (m2[4] === '-' ? -1 : m2[4] === '+' ? 1 : m2[4] === '--' ? -2 : m2[4] === '++' ? 2 : 0) + (m2[5] ? '~' : '')); }
       if (u2 !== vm[2].length || arr.length !== o.s.length) throw 0;
@@ -2332,7 +2372,7 @@ function genCode() {
   if (!S.cols.length) { msg('Escribe primero la melodía en la voz Soprano.'); return; }
   if (bad) { msg('Hay acordes sin nota de soprano. Completa la melodía antes de generar el código.'); return; }
   var o = {
-    v: 1, t: $('tTitle').value.trim(), k: S.key, kc: kcList().reduce(function (a, d) { a[d] = S.kc[d]; return a; }, {}), m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
+    v: 1, t: $('tTitle').value.trim(), k: S.key, kc: kcList().reduce(function (a, d) { a[d] = S.kc[d]; return a; }, {}), tc: tcList().reduce(function (a, d) { a[d] = S.tc[d]; return a; }, {}), m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
     s: S.cols.filter(function (c) { return !c.v[0].h; }).map(function (c) { var e = c.v[0]; return [e.d || c.d, e.r ? 'r' : e.l + e.o + ':' + e.a, e.t ? 1 : 0]; })
   };
   var base = S.cols.filter(function (c) { return !c.v[0].h; }), xs = {}, names = ['Soprano'], skipped = [];
@@ -2367,7 +2407,8 @@ function loadCode(str) {
     var o = str.indexOf('A1.') === 0 ? unpackCode(str) : JSON.parse(unb64u(str));
     if (!o || o.v !== 1 || !KEYS.some(function (k) { return k[0] === o.k; }) || !TIMES[o.m]) throw 0;
     var ns = newState(); ns.etitle = o.t || ''; ns.key = o.k; ns.time = o.m; ns.measures = o.n || 4; ns.pickup = o.pk || 0; ns.perSystem = o.p || 4; ns.lock = !!o.l; ns.chk = o.c !== 0;
-    ns.lines = S.lines; ns.kc = {};
+    ns.lines = S.lines; ns.kc = {}; ns.tc = {};
+    if (o.tc) Object.keys(o.tc).forEach(function (d) { if (!(+d >= 1) || !TIMES[o.tc[d]]) throw 0; ns.tc[+d] = o.tc[d]; });
     if (o.kc) Object.keys(o.kc).forEach(function (d) { if (!(+d >= 1) || !KEYS.some(function (k) { return k[0] === o.kc[d]; })) throw 0; ns.kc[+d] = o.kc[d]; });
     o.s.forEach(function (r) {
       if (!DUR[r[0]]) throw 0; var v = [null, null, null, null];
