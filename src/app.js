@@ -212,7 +212,7 @@ function exStash() { if (!EX.list.length) EX.list = [{ S: S, hist: hist, redo: r
 function exSwitch(j) {
   exStash(); if (j < 0 || j >= EX.list.length) return;
   stopPlay(); closePalette(); penClear(); EX.i = j; var o = EX.list[j]; S = o.S; hist = o.hist; redo = o.redo;
-  if (S.lock && ui.voice === 0) ui.voice = 1; refresh();
+  if (isLk(ui.voice)) ui.voice = firstFree(); refresh();
 }
 function exAdd() {
   exStash(); var cur = S, ns = newState(); ns.key = cur.key; ns.time = cur.time; ns.perSystem = cur.perSystem; ns.lines = cur.lines;
@@ -544,7 +544,7 @@ function updatePreview(p) {
   var g = $('pv'); if (!g) return; g.innerHTML = '';
   if (ui.mode !== 'write' || ui.rest) return;
   var h = hitTest(p); if (!h || (h.col == null && !h.append)) return;
-  if (S.lock && ui.voice === 0) return;
+  if (isLk(ui.voice)) return;
   var pt = pitchAt(ui.voice, p.y, h.sys, keyForHit(h)), x = h.col != null ? layout.cols[h.col].x : h.bx;
   var c = VOICES[ui.voice].c;
   if (pt.step < 0 || pt.step > 8) {
@@ -586,7 +586,7 @@ function onClick(p, right) {
   var h = hitTest(p); if (!h) { msg('No pude ubicar la nota: escríbela dentro del pentagrama, sobre el acorde o en el compás sombreado.'); return; }
   var vi = ui.voice, mode = right ? 'del' : ui.mode, mlen = TIMES[S.time].b;
   msg('');
-  if (S.lock && vi === 0 && mode !== 'delchord') { msg('La soprano es la melodía dada y no se puede modificar.'); return; }
+  if (isLk(vi) && mode !== 'delchord') { msg(vi === 0 ? 'La soprano es la melodía dada y no se puede modificar.' : 'Esa voz es dada y no se puede modificar.'); return; }
   if (mode === 'write') {
     if (h.col != null) {
       var cc = S.cols[h.col], cur0 = cc.v[vi], nv;
@@ -667,7 +667,7 @@ function onClick(p, right) {
     mutate(function () { var st = startOf(h.col, vi); if (st < 0) st = h.col; S.cols[st].v[vi] = null; });
   } else if (mode === 'delchord') {
     if (h.col == null) return;
-    mutate(function () { var c = S.cols[h.col]; for (var i = S.lock ? 1 : 0; i < 4; i++) c.v[i] = null; c.rn = null; c.cs = null; });
+    mutate(function () { var c = S.cols[h.col]; for (var i = 0; i < 4; i++) if (!isLk(i)) c.v[i] = null; c.rn = null; c.cs = null; });
   }
 }
 
@@ -1596,18 +1596,28 @@ function copyText(t, ok) {
 function b64u(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
 var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', ed: 'E', e: 'e', s: 's', ht: 'y', qt: 'v', et: 'u', st: 'x' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
+function isLk(vi) { return !!S.lock && (vi === 0 || (S.lockV || []).indexOf(vi) >= 0); }
+function firstFree() { for (var i = 0; i < 4; i++) if (!isLk(i)) return i; return 0; }
 function packCode(o) {
   var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : ''); }); return DCH[r[0]] + p + (r[2] ? '~' : ''); }).join('');
-  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
+  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.x ? Object.keys(o.x).map(function (vi) { return '.V' + vi + o.x[vi].map(function (r) { return r === null ? '_' : r === 'r' ? 'r' : r.replace(/^([a-g])(\d):(-?\d)(~?)$/, function (_, l, oc, a, t) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : '') + t; }); }).join(''); }).join('') : '') + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
 }
 function unpackCode(str) {
-  var p = str.split('.'); if (p[0] !== 'A1' || (p.length !== 6 && p.length !== 7)) throw 0;
+  var p = str.split('.'); if (p[0] !== 'A1' || p.length < 6 || p.length > 10) throw 0;
   var key = p[1].replace('s', '#'), tm = p[2].replace(/^(\d)(\d)$/, '$1/$2'), g = p[3].split('-');
   var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], pk: (+g[3] || 0) / 2, s: [] };
   var re = /([wHhQqEesyvux])(r|([a-g])(\d)([-+]{0,2})(~?))/g, m, used = 0;
   while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : m[5] === '--' ? -2 : m[5] === '++' ? 2 : 0), m[6] ? 1 : 0]); }
   if (used !== p[5].length) throw 0;
-  if (p.length === 7) { o.kc = {}; p[6].split(',').forEach(function (x) { var q = /^(\d+):([A-Ga-g][sb]?m?)$/.exec(x); if (!q) throw 0; o.kc[+q[1]] = q[2].replace('s', '#'); }); }
+  for (var si = 6; si < p.length; si++) {
+    var vm = /^V([123])(.*)$/.exec(p[si]);
+    if (vm) {
+      o.x = o.x || {}; var arr = [], re2 = /(_|r|([a-g])(\d)([-+]{0,2})(~?))/g, m2, u2 = 0;
+      while ((m2 = re2.exec(vm[2]))) { u2 += m2[0].length; arr.push(m2[1] === '_' ? null : m2[1] === 'r' ? 'r' : m2[2] + m2[3] + ':' + (m2[4] === '-' ? -1 : m2[4] === '+' ? 1 : m2[4] === '--' ? -2 : m2[4] === '++' ? 2 : 0) + (m2[5] ? '~' : '')); }
+      if (u2 !== vm[2].length || arr.length !== o.s.length) throw 0;
+      o.x[+vm[1]] = arr;
+    } else { o.kc = {}; p[si].split(',').forEach(function (x) { var q = /^(\d+):([A-Ga-g][sb]?m?)$/.exec(x); if (!q) throw 0; o.kc[+q[1]] = q[2].replace('s', '#'); }); }
+  }
   return o;
 }
 function genCode() {
@@ -1618,7 +1628,21 @@ function genCode() {
     v: 1, t: $('tTitle').value.trim(), k: S.key, kc: kcList().reduce(function (a, d) { a[d] = S.kc[d]; return a; }, {}), m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
     s: S.cols.filter(function (c) { return !c.v[0].h; }).map(function (c) { var e = c.v[0]; return [e.d || c.d, e.r ? 'r' : e.l + e.o + ':' + e.a, e.t ? 1 : 0]; })
   };
-  $('tOut').value = packCode(o); msg('Código generado.', true);
+  var base = S.cols.filter(function (c) { return !c.v[0].h; }), xs = {}, names = ['Soprano'], skipped = [];
+  [1, 2, 3].forEach(function (vi) {
+    if (!S.cols.some(function (c) { return c.v[vi]; })) return;
+    var ok = true, arr = base.map(function (c) {
+      var e = c.v[vi], sd = c.v[0].d || c.d;
+      if (!e) return null;
+      if (e.h || (e.d && e.d !== sd)) { ok = false; return null; }
+      return e.r ? 'r' : e.l + e.o + ':' + e.a + (e.t ? '~' : '');
+    });
+    S.cols.forEach(function (c) { if (c.v[0].h && c.v[vi]) ok = false; });
+    if (ok) { xs[vi] = arr; names.push(VOICES[vi].n); } else skipped.push(VOICES[vi].n);
+  });
+  if (names.length > 1) o.x = xs;
+  $('tOut').value = packCode(o);
+  msg('Código generado' + (names.length > 1 ? ' con ' + names.join(', ') : '') + '.' + (skipped.length ? ' No incluí ' + skipped.join(', ') + ': su ritmo es distinto al de la soprano (el código solo lleva voces con el mismo ritmo).' : ''), true);
 }
 function newExercise() {
   if (S.cols.length && !confirm(T('¿Reiniciar este ejercicio? Se borrará lo que hay en pantalla (puedes recuperarlo con «Deshacer»).'))) return;
@@ -1643,9 +1667,19 @@ function loadCode(str) {
       if (r[1] === 'r') v[0] = { r: 1 }; else { var m = /^([a-g])(\d):(-?\d)$/.exec(r[1]); if (!m) throw 0; v[0] = { l: m[1], o: +m[2], a: +m[3] }; if (r[2]) v[0].t = 1; }
       ns.cols.push({ d: r[0], v: v, rn: null, cs: null });
     });
+    ns.lockV = [];
+    if (o.x) Object.keys(o.x).forEach(function (vi) {
+      o.x[vi].forEach(function (r, ci) {
+        if (r === null) return;
+        if (r === 'r') { ns.cols[ci].v[+vi] = { r: 1 }; return; }
+        var m = /^([a-g])(\d):(-?\d)(~?)$/.exec(r); if (!m) throw 0;
+        var en = { l: m[1], o: +m[2], a: +m[3] }; if (m[4]) en.t = 1; ns.cols[ci].v[+vi] = en;
+      });
+      if (ns.lock) ns.lockV.push(+vi);
+    });
     if (!partition(ns.cols, TIMES[ns.time].b, ns.pickup).ok) throw 0;
-    pushHist(); S = ns; ui.voice = ns.lock ? 1 : 0; normalize(); refresh();
-    msg((S.etitle ? S.etitle + ': ' : '') + 'ejercicio cargado.' + (S.lock ? ' Completa Alto, Tenor y Bajo, y pon grados y cifrado.' : ''), true);
+    pushHist(); S = ns; ui.voice = ns.lock ? firstFree() : 0; normalize(); refresh();
+    msg((S.etitle ? S.etitle + ': ' : '') + 'ejercicio cargado.' + (S.lock ? ' Completa ' + [1, 2, 3].filter(function (i) { return !isLk(i); }).map(function (i) { return VOICES[i].n; }).join(', ').replace(/, ([^,]*)$/, ' y $1') + ', y pon grados y cifrado.' : ''), true);
   } catch (e) { msg('El código no es válido. Cópialo completo, tal como lo dejó el docente.'); }
 }
 
@@ -1715,7 +1749,7 @@ function lastDiatonic(vi) {
   return null;
 }
 function putNoteVoice(vi, nv) {
-  if (S.lock && vi === 0) { msg('La soprano es la melodía dada y no se puede modificar.'); return false; }
+  if (isLk(vi)) { msg(vi === 0 ? 'La soprano es la melodía dada y no se puede modificar.' : 'Esa voz es dada y no se puede modificar.'); return false; }
   var ci = -1, i;
   for (i = 0; i < S.cols.length; i++) if (!S.cols[i].v[vi]) { ci = i; break; }
   if (ci >= 0) { var D = S.lock ? S.cols[ci].d : ui.dur; return tryEdit(function () { return writeNote(ci, vi, nv, D); }); }

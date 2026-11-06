@@ -76,7 +76,7 @@
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v31</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v32</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>
@@ -85,13 +85,13 @@
     <summary>Modo docente: crear el código de un ejercicio</summary>
     <ol>
       <li>Elige tonalidad, compás y número de compases arriba.</li>
-      <li>Escribe la melodía en la voz <b>Soprano</b> (solo S).</li>
+      <li>Escribe la melodía en la voz <b>Soprano</b> (y, si quieres, también el bajo u otras voces con el mismo ritmo).</li>
       <li>Marca las opciones y pulsa <i>Generar código</i>. Pega el código (o el enlace) en la descripción de la tarea.</li>
     </ol>
     <p><b>Revisar una entrega:</b> descarga el PNG del estudiante desde Moodle y ábrelo con «Abrir trabajo (.json o PNG)». Carga el ejercicio completo y puedes escucharlo, usar «Revisar errores» y corregirlo. Solo funciona con el PNG descargado desde esta página, sin editarlo ni convertirlo.</p>
     <div class="row">
       <label class="grp"><span class="t">Título del ejercicio (opcional)</span><input type="text" id="tTitle" size="30" placeholder="Ej.: Melodía 1"></label>
-      <label class="chk"><input type="checkbox" id="tLock" checked> Bloquear soprano y ritmo (melodía dada)</label>
+      <label class="chk"><input type="checkbox" id="tLock" checked> Bloquear las voces dadas y el ritmo</label>
       <label class="chk"><input type="checkbox" id="tChk" checked> Permitir «Revisar errores»</label>
       <button id="tGen" class="big">Generar código</button>
     </div>
