@@ -146,7 +146,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
     <div class="row">
       <div class="grp"><span class="t">Escuchar</span><div class="b"><button id="bPlay">▶ Escuchar</button><select id="sInst" title="Instrumento"></select><label class="chk" title="Negras por minuto">Tempo <input type="number" id="nBpm" min="40" max="160" value="76"></label><label class="chk" title="Deja vacío para escuchar todo el ejercicio">Desde el compás <input type="number" id="nFrom" min="1" max="99" style="width:56px"></label><label class="chk" title="Deja vacío para escuchar hasta el final">hasta <input type="number" id="nTo" min="1" max="99" style="width:56px"></label></div></div>
       <div class="grp"><span class="t">Revisión</span><div class="b"><button id="bCheck">Revisar errores</button></div></div>
-      <div class="grp"><span class="t">Entregar</span><div class="b"><button id="bPng" class="big">Descargar imagen (PNG)</button><button id="bPrint">Imprimir / guardar PDF</button></div></div>
+      <div class="grp"><span class="t">Entregar</span><div class="b"><button id="bPng" class="big">Descargar imagen (PNG)</button><button id="bPrint">Imprimir / guardar PDF</button><button id="bXml" title="Archivo MusicXML para abrir en MuseScore, Finale, Sibelius, Dorico…">Descargar MusicXML</button></div></div>
       <div class="grp"><span class="t">Continuar después</span><div class="b"><button id="bSave">Guardar trabajo</button><button id="bOpen" title="Abre un archivo .json o un PNG descargado de esta página">Abrir trabajo (.json o PNG)</button><input type="file" id="fOpen" accept=".json,application/json,.png,image/png" hidden></div></div>
     </div>
     <div class="row">
@@ -168,7 +168,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v33</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v34</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>
@@ -370,6 +370,9 @@ var I18N_D = {
   ": haz clic en los recuadros.": ": click on the boxes.",
   "Escribe tu nombre y pulsa": "Write your name and press",
   "Descargar imagen (PNG)": "Download image (PNG)",
+  "Descargar MusicXML": "Download MusicXML",
+  "Archivo MusicXML para abrir en MuseScore, Finale, Sibelius, Dorico…": "MusicXML file to open in MuseScore, Finale, Sibelius, Dorico…",
+  "Archivo MusicXML descargado (hoja actual). Ábrelo en MuseScore, Finale, Sibelius, Dorico, Flat.io…": "MusicXML file downloaded (current sheet). Open it in MuseScore, Finale, Sibelius, Dorico, Flat.io…",
   "o": "or",
   "Imprimir / guardar PDF": "Print / save PDF",
   ". Sube ese archivo en la tarea de Moodle.": ". Upload that file to the Moodle assignment.",
@@ -1872,6 +1875,7 @@ function buildStaticUI() {
   $('bPng').addEventListener('click', exportPNG);
   $('bPrint').addEventListener('click', printPDF);
   $('bSave').addEventListener('click', saveJSON);
+  $('bXml').addEventListener('click', exportMusicXML);
   $('bOpen').addEventListener('click', function () { $('fOpen').click(); });
   $('fOpen').addEventListener('change', openJSON);
   $('bLoad').addEventListener('click', function () { loadCode($('iCode').value); });
@@ -2318,6 +2322,116 @@ function download(blob, name) {
   setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 function saveJSON() { download(new Blob([JSON.stringify({ v: 1, info: info, S: S, X: allS(), xi: EX.i })], { type: 'application/json' }), fileBase() + '.json'); msg('Trabajo guardado. Para seguir después, usa «Abrir trabajo».', true); }
+/* ================= exportar a MusicXML ================= */
+function xmlEsc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+var MXL_TYPE = { w: 'whole', h: 'half', q: 'quarter', '8': 'eighth', '16': '16th' };
+var MXL_KIND = { M: 'major', m: 'minor', dim: 'diminished', aug: 'augmented', '7': 'dominant', maj7: 'major-seventh', m7: 'minor-seventh', m7b5: 'half-diminished', dim7: 'diminished-seventh', mmaj7: 'major-minor' };
+var MXL_DYN = { pp: 1, p: 1, mp: 1, mf: 1, f: 1, ff: 1, fp: 1, sfz: 1 };
+var MXL_MARK = { sg: ['segno'], co: ['coda'], fi: ['Fine', 'fine'], tc: ['To Coda', 'tocoda'], dc: ['D.C.', 'dacapo'], dcf: ['D.C. al Fine', 'dacapo'], dcc: ['D.C. al Coda', 'dacapo'], ds: ['D.S.', 'dalsegno'], dsf: ['D.S. al Fine', 'dalsegno'], dsc: ['D.S. al Coda', 'dalsegno'] };
+function mxlNote(ev, vi, staff, tieIn) {
+  var D = DUR[ev.k], x = '<note>';
+  if (ev.r) x += '<rest/>'; else x += '<pitch><step>' + ev.l.toUpperCase() + '</step>' + (ev.a ? '<alter>' + ev.a + '</alter>' : '') + '<octave>' + ev.o + '</octave></pitch>';
+  x += '<duration>' + Math.round(D.b * 12) + '</duration>';
+  if (!ev.r) { if (tieIn) x += '<tie type="stop"/>'; if (ev.t) x += '<tie type="start"/>'; }
+  x += '<voice>' + (vi + 1) + '</voice><type>' + MXL_TYPE[D.vf] + '</type>';
+  for (var i = 0; i < D.dots; i++) x += '<dot/>';
+  if (D.tri) x += '<time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes><normal-type>' + MXL_TYPE[D.vf] + '</normal-type></time-modification>';
+  if (!ev.r) x += '<stem>' + (VOICES[vi].dir > 0 ? 'up' : 'down') + '</stem>';
+  x += '<staff>' + staff + '</staff>';
+  var nt = '';
+  if (!ev.r) { if (tieIn) nt += '<tied type="stop"/>'; if (ev.t) nt += '<tied type="start"/>'; }
+  if (ev.tm === 'start' || ev.tm === 'both') nt += '<tuplet type="start" bracket="yes"/>';
+  if (ev.tm === 'stop' || ev.tm === 'both') nt += '<tuplet type="stop"/>';
+  if (nt) x += '<notations>' + nt + '</notations>';
+  return x + '</note>';
+}
+function buildMusicXML() {
+  var part = partition(S.cols, TIMES[S.time].b), nm = usedMeasures(part), rp = S.rp || {}, vis = [], vi, k, tie = [false, false, false, false];
+  for (vi = 0; vi < 4; vi++) if (S.cols.some(function (c) { return c.v[vi] && !c.v[vi].h; })) vis.push(vi);
+  if (!vis.length) vis = [0];
+  var out = '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n<score-partwise version="3.1">\n';
+  var title = S.etitle || 'Armonización a cuatro voces';
+  out += '<work><work-title>' + xmlEsc(title) + '</work-title></work>\n<identification>' + (info.name.trim() ? '<creator type="arranger">' + xmlEsc(info.name.trim()) + '</creator>' : '') + '<encoding><software>Armonikus</software><encoding-date>' + new Date().toISOString().slice(0, 10) + '</encoding-date></encoding></identification>\n';
+  out += '<part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>\n<part id="P1">\n';
+  for (k = 0; k < nm; k++) {
+    var m = part.ms[k], rk = rp[k] || {}, kk = keyAtM(k), tk = timeAtM(k), T = TIMES[tk], mlen = mlenAt(k), x = '';
+    var impl = (k === 0 && S.pickup) || (k > 0 && brPk(k - 1));
+    x += '<measure number="' + measNum(k) + '"' + (impl ? ' implicit="yes"' : '') + '>';
+    var bl = '';
+    if (rk.rs) bl += '<bar-style>heavy-light</bar-style>';
+    if (rk.v && (k === 0 || (rp[k - 1] || {}).v !== rk.v)) bl += '<ending number="' + rk.v + '" type="start"/>';
+    if (rk.rs) bl += '<repeat direction="forward"/>';
+    if (bl) x += '<barline location="left">' + bl + '</barline>';
+    if (k === 0 || kk !== keyAtM(k - 1) || tcAt(k)) {
+      x += '<attributes>';
+      if (k === 0) x += '<divisions>12</divisions>';
+      if (k === 0 || kk !== keyAtM(k - 1)) x += '<key><fifths>' + keyInfo(kk)[3] + '</fifths><mode>' + (isMinor(kk) ? 'minor' : 'major') + '</mode></key>';
+      if (k === 0 || tcAt(k)) x += '<time' + (T.sym === 'C' ? ' symbol="common"' : T.sym === 'C|' ? ' symbol="cut"' : '') + '><beats>' + T.nb + '</beats><beat-type>' + T.bv + '</beat-type></time>';
+      if (k === 0) x += '<staves>2</staves><clef number="1"><sign>G</sign><line>2</line></clef><clef number="2"><sign>F</sign><line>4</line></clef>';
+      x += '</attributes>';
+    }
+    if (k === 0) x += '<direction placement="above"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>' + (info.bpm || 76) + '</per-minute></metronome></direction-type><sound tempo="' + (info.bpm || 76) + '"/></direction>';
+    var pos = 0, mk = MXL_MARK[rk.mk];
+    m.forEach(function (ci) {
+      var c = S.cols[ci], off = Math.round(pos * 12), o = off ? '<offset>' + off + '</offset>' : '';
+      if (c.cs && MXL_KIND[c.cs.q]) {
+        x += '<harmony><root><root-step>' + c.cs.l.toUpperCase() + '</root-step>' + (c.cs.a ? '<root-alter>' + c.cs.a + '</root-alter>' : '') + '</root><kind text="' + xmlEsc(QUAL[c.cs.q]) + '">' + MXL_KIND[c.cs.q] + '</kind>' +
+          (c.cs.bl ? '<bass><bass-step>' + c.cs.bl.l.toUpperCase() + '</bass-step>' + (c.cs.bl.a ? '<bass-alter>' + c.cs.bl.a + '</bass-alter>' : '') + '</bass>' : '') +
+          (c.cs.f ? '<degree><degree-value>5</degree-value><degree-alter>' + (c.cs.f === 'b5' ? -1 : 1) + '</degree-alter><degree-type>alter</degree-type></degree>' : '') + o + '</harmony>';
+      }
+      if (c.rn) {
+        var rt = c.rn.b + (c.rn.f || '') + (c.rn.of ? '/' + c.rn.of : '');
+        x += '<direction placement="below"><direction-type><words font-style="italic">' + xmlEsc(rt) + '</words></direction-type>' + o + '<staff>2</staff></direction>';
+      }
+      if (c.dy) x += '<direction placement="below"><direction-type>' + (MXL_DYN[c.dy] ? '<dynamics><' + c.dy + '/></dynamics>' : '<words font-style="italic" font-weight="bold">' + xmlEsc(c.dy) + '</words>') + '</direction-type>' + o + '<staff>2</staff></direction>';
+      pos += DUR[c.d].b;
+    });
+    if (mk && (mk[0] === 'segno' || mk[0] === 'coda')) x += '<direction placement="above"><direction-type><' + mk[0] + '/></direction-type><sound ' + mk[0] + '="' + mk[0] + '1"/></direction>';
+    var prevTot = 0, first = true;
+    vis.forEach(function (v) {
+      var evs = [], tot = 0;
+      m.forEach(function (ci) {
+        var e = S.cols[ci].v[v]; if (e && e.h) return;
+        var dk = (e && e.d) ? e.d : S.cols[ci].d;
+        if (!DUR[dk]) dk = S.cols[ci].d;
+        if (!e || e.r) evs.push({ r: 1, k: dk }); else evs.push({ l: e.l, o: e.o, a: e.a || 0, t: e.t, k: dk });
+      });
+      var sum = 0, unit = 0, open = -1;
+      evs.forEach(function (ev, i) {
+        var D = DUR[ev.k];
+        if (!D.tri) { if (open >= 0) { evs[i - 1].tm = evs[i - 1].tm === 'start' ? 'both' : 'stop'; open = -1; } sum = 0; return; }
+        if (open < 0) { open = i; unit = ev.k === 'ht' ? 4 : ev.k === 'qt' ? 2 : ev.k === 'et' ? 1 : 0.5; sum = 0; ev.tm = 'start'; }
+        if ((ev.k === 'et' || ev.k === 'st') && unit === 2) unit = 1;
+        sum += D.b;
+        if (sum >= unit - EPS) { ev.tm = ev.tm === 'start' ? 'both' : 'stop'; open = -1; sum = 0; }
+      });
+      if (open >= 0 && evs.length) { var ll = evs[evs.length - 1]; ll.tm = ll.tm === 'start' ? 'both' : 'stop'; }
+      if (!first && prevTot) x += '<backup><duration>' + prevTot + '</duration></backup>';
+      evs.forEach(function (ev) {
+        x += mxlNote(ev, v, v < 2 ? 1 : 2, tie[v] && !ev.r);
+        tie[v] = !!(ev.t && !ev.r); tot += Math.round(DUR[ev.k].b * 12);
+      });
+      prevTot = tot; first = false;
+    });
+    if (mk && mk[0] !== 'segno' && mk[0] !== 'coda') {
+      var snd = mk[1] === 'fine' ? 'fine="yes"' : mk[1] === 'tocoda' ? 'tocoda="coda1"' : mk[1] === 'dacapo' ? 'dacapo="yes"' : 'dalsegno="segno1"';
+      x += '<direction placement="above"><direction-type><words>' + mk[0] + '</words></direction-type><sound ' + snd + '/></direction>';
+    }
+    var br = '';
+    if (rk.v && (rp[k + 1] || {}).v !== rk.v) br += '<ending number="' + rk.v + '" type="' + (rk.re ? 'stop' : 'discontinue') + '"/>';
+    if (rk.re) br += '<repeat direction="backward"/>';
+    if (k === nm - 1) br = '<bar-style>light-heavy</bar-style>' + br;
+    else if (rk.re) br = '<bar-style>light-heavy</bar-style>' + br;
+    else if (hasBr(k)) br = '<bar-style>light-light</bar-style>' + br;
+    if (br) x += '<barline location="right">' + br + '</barline>';
+    out += x + '</measure>\n';
+  }
+  return out + '</part>\n</score-partwise>\n';
+}
+function exportMusicXML() {
+  try { exStash(); var xml = buildMusicXML(); download(new Blob([xml], { type: 'application/vnd.recordare.musicxml+xml' }), fileBase() + '.musicxml'); msg('Archivo MusicXML descargado (hoja actual). Ábrelo en MuseScore, Finale, Sibelius, Dorico, Flat.io…', true); }
+  catch (x) { msg('No pude generar el MusicXML: ' + x.message); }
+}
 function openJSON() {
   var f = this.files[0]; if (!f) return; var r = new FileReader(), inp = this;
   function apply(d) { if (!d.S || !d.S.cols) throw 0; exStash(); if (d.X && d.X.length) exSet(d.X, d.xi); else exSet([d.S], 0); info = d.info || info; if (!info.inst) info.inst = 'piano'; if (!info.bpm) info.bpm = 76; refresh(); }
@@ -2616,7 +2730,7 @@ try {
 } catch (e) { }
 refresh();
 if (location.hash.indexOf('#ej=') === 0) loadCode(location.hash);
-window.__lm3 = { measureOrder: measureOrder, T: T, setLang: setLang, penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, parseSpeech: parseSpeech };
+window.__lm3 = { measureOrder: measureOrder, T: T, setLang: setLang, penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, buildMusicXML: buildMusicXML, parseSpeech: parseSpeech };
 })();
 
 </script>
