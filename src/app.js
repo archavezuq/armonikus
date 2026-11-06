@@ -499,7 +499,7 @@ function makeSlot(kind, ci, x, y, wd, html, filled) {
   b.title = kind === 'cs' ? 'Cifrado americano' : 'Grado (cifrado romano)';
   if (kind === 'cs') { b.textContent = html; var L = html.length; b.style.fontSize = L > 8 ? '10px' : L > 5 ? '12px' : ''; if (L > 5) b.style.width = Math.max(wd, Math.min(78, L * 6.4 + 8)) + 'px', b.style.left = (x - (Math.max(wd, Math.min(78, L * 6.4 + 8)) - wd) / 2) + 'px'; } else b.innerHTML = html;
   if (!filled) b.innerHTML = '<span style="color:#aab3c0;font-size:15px;font-family:system-ui,Arial,sans-serif">+</span>';
-  b.addEventListener('click', function (e) { e.stopPropagation(); if (kind === 'cs') openChordPalette(ci, b); else openRomanPalette(ci, b); });
+  b.addEventListener('click', function (e) { e.stopPropagation(); if (S.lockC) { msg('Los grados y el cifrado son datos del ejercicio y no se pueden modificar.'); return; } if (kind === 'cs') openChordPalette(ci, b); else openRomanPalette(ci, b); });
   return b;
 }
 function openBand() {
@@ -675,7 +675,7 @@ function onClick(p, right) {
     mutate(function () { var st = startOf(h.col, vi); if (st < 0) st = h.col; S.cols[st].v[vi] = null; });
   } else if (mode === 'delchord') {
     if (h.col == null) return;
-    mutate(function () { var c = S.cols[h.col]; for (var i = 0; i < 4; i++) if (!isLk(i)) c.v[i] = null; c.rn = null; c.cs = null; });
+    mutate(function () { var c = S.cols[h.col]; for (var i = 0; i < 4; i++) if (!isLk(i)) c.v[i] = null; if (!S.lockC) { c.rn = null; c.cs = null; } });
   }
 }
 
@@ -1161,6 +1161,14 @@ function buildStaticUI() {
   $('fOpen').addEventListener('change', openJSON);
   $('bLoad').addEventListener('click', function () { loadCode($('iCode').value); });
   $('tGen').addEventListener('click', genCode);
+  $('tAddCh').addEventListener('click', function () {
+    if (S.lock) { msg('Este ejercicio tiene el ritmo fijo.'); return; }
+    var nc = { d: ui.dur, v: [{ r: 1 }, null, null, null], rn: null, cs: null };
+    S.cols.push(nc); var pp = partition(S.cols, TIMES[S.time].b), okk = pp.ok && usedMeasures(pp) <= S.measures; S.cols.pop();
+    if (!okk) { msg('Esa figura no cabe en lo que queda del compás, o se pasa del n.º de compases.'); return; }
+    mutate(function () { S.cols.push(nc); });
+    msg('Acorde añadido. Pon su grado y su cifrado en los recuadros «+» (arriba y debajo del pentagrama).', true);
+  });
   $('tCopy').addEventListener('click', function () { copyText($('tOut').value, 'Código copiado.'); });
   $('tLink').addEventListener('click', function () { copyText(location.href.split('#')[0] + '#ej=' + $('tOut').value, 'Enlace copiado.'); });
   var stage = $('stage');
@@ -1737,22 +1745,23 @@ function copyText(t, ok) {
 function b64u(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function unb64u(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
 var DCH = { w: 'w', hd: 'H', h: 'h', qd: 'Q', q: 'q', ed: 'E', e: 'e', s: 's', ht: 'y', qt: 'v', et: 'u', st: 'x' }, DCH_R = {}; Object.keys(DCH).forEach(function (k) { DCH_R[DCH[k]] = k; });
-function isLk(vi) { return !!S.lock && (vi === 0 || (S.lockV || []).indexOf(vi) >= 0); }
+function isLk(vi) { return !!S.lock && (vi === 0 ? !S.noS : (S.lockV || []).indexOf(vi) >= 0); }
 function firstFree() { for (var i = 0; i < 4; i++) if (!isLk(i)) return i; return 0; }
 function packCode(o) {
   var notes = o.s.map(function (r) { var p = r[1] === 'r' ? 'r' : r[1].replace(/^([a-g])(\d):(-?\d)$/, function (_, l, oc, a) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : ''); }); return DCH[r[0]] + p + (r[2] ? '~' : ''); }).join('');
-  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.tc && Object.keys(o.tc).length ? '.T' + Object.keys(o.tc).map(function (d) { return d + ':' + o.tc[d].replace('/', ''); }).join(',') : '') + (o.x ? Object.keys(o.x).map(function (vi) { return '.V' + vi + o.x[vi].map(function (r) { return r === null ? '_' : r === 'r' ? 'r' : r.replace(/^([a-g])(\d):(-?\d)(~?)$/, function (_, l, oc, a, t) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : '') + t; }); }).join(''); }).join('') : '') + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
+  return 'A1.' + o.k.replace('#', 's') + '.' + o.m.replace('/', '') + '.' + o.n + '-' + o.p + '-' + o.l + o.c + '-' + Math.round((o.pk || 0) * 2) + '.' + encodeURIComponent(o.t || '').replace(/\./g, '%2E') + '.' + notes + (o.tc && Object.keys(o.tc).length ? '.T' + Object.keys(o.tc).map(function (d) { return d + ':' + o.tc[d].replace('/', ''); }).join(',') : '') + (o.x ? Object.keys(o.x).map(function (vi) { return '.V' + vi + o.x[vi].map(function (r) { return r === null ? '_' : r === 'r' ? 'r' : r.replace(/^([a-g])(\d):(-?\d)(~?)$/, function (_, l, oc, a, t) { return l + oc + (a === '-1' ? '-' : a === '1' ? '+' : a === '-2' ? '--' : a === '2' ? '++' : '') + t; }); }).join(''); }).join('') : '') + (o.h ? '.H' + b64u(JSON.stringify(o.h)) : '') + (o.kc && Object.keys(o.kc).length ? '.' + Object.keys(o.kc).map(function (d) { return d + ':' + o.kc[d].replace('#', 's'); }).join(',') : '');
 }
 function unpackCode(str) {
-  var p = str.split('.'); if (p[0] !== 'A1' || p.length < 6 || p.length > 10) throw 0;
+  var p = str.split('.'); if (p[0] !== 'A1' || p.length < 6 || p.length > 12) throw 0;
   var key = p[1].replace('s', '#'), tm = p[2].replace(/^(\d)(\d)$/, '$1/$2'), g = p[3].split('-');
   var o = { v: 1, t: decodeURIComponent(p[4]), k: key, m: tm, n: +g[0], p: +g[1], l: +g[2][0], c: +g[2][1], pk: (+g[3] || 0) / 2, s: [] };
   var re = /([wHhQqEesyvux])(r|([a-g])(\d)([-+]{0,2})(~?))/g, m, used = 0;
   while ((m = re.exec(p[5]))) { used += m[0].length; o.s.push([DCH_R[m[1]], m[2] === 'r' ? 'r' : m[3] + m[4] + ':' + (m[5] === '-' ? -1 : m[5] === '+' ? 1 : m[5] === '--' ? -2 : m[5] === '++' ? 2 : 0), m[6] ? 1 : 0]); }
   if (used !== p[5].length) throw 0;
   for (var si = 6; si < p.length; si++) {
-    var tm0 = /^T(\d+:\d\d(?:,\d+:\d\d)*)$/.exec(p[si]), vm = /^V([123])(.*)$/.exec(p[si]);
-    if (tm0) { o.tc = {}; tm0[1].split(',').forEach(function (x) { var q = x.split(':'); o.tc[+q[0]] = q[1].replace(/^(\d)(\d)$/, '$1/$2'); }); }
+    var tm0 = /^T(\d+:\d\d(?:,\d+:\d\d)*)$/.exec(p[si]), vm = /^V([123])(.*)$/.exec(p[si]), hm = /^H([A-Za-z0-9_-]+)$/.exec(p[si]);
+    if (hm) { o.h = JSON.parse(unb64u(hm[1])); if (!o.h || !Array.isArray(o.h.a) || o.h.a.length !== o.s.length) throw 0; }
+    else if (tm0) { o.tc = {}; tm0[1].split(',').forEach(function (x) { var q = x.split(':'); o.tc[+q[0]] = q[1].replace(/^(\d)(\d)$/, '$1/$2'); }); }
     else if (vm) {
       o.x = o.x || {}; var arr = [], re2 = /(_|r|([a-g])(\d)([-+]{0,2})(~?))/g, m2, u2 = 0;
       while ((m2 = re2.exec(vm[2]))) { u2 += m2[0].length; arr.push(m2[1] === '_' ? null : m2[1] === 'r' ? 'r' : m2[2] + m2[3] + ':' + (m2[4] === '-' ? -1 : m2[4] === '+' ? 1 : m2[4] === '--' ? -2 : m2[4] === '++' ? 2 : 0) + (m2[5] ? '~' : '')); }
@@ -1762,16 +1771,36 @@ function unpackCode(str) {
   }
   return o;
 }
+function chordPack(c) { return [c && c.rn ? { b: c.rn.b, f: c.rn.f || '', of: c.rn.of || '' } : 0, c && c.cs ? { l: c.cs.l, a: c.cs.a || 0, q: c.cs.q, f: c.cs.f || '', bl: c.cs.bl ? { l: c.cs.bl.l, a: c.cs.bl.a || 0 } : null } : 0]; }
+function chordClean(a) {
+  var rn = null, cs = null, r = a && a[0], c = a && a[1];
+  if (r && typeof r.b === 'string' && r.b.length && r.b.length <= 10) rn = { b: r.b, f: ['6', '64', '7', '65', '43', '42'].indexOf(r.f) >= 0 ? r.f : '', of: typeof r.of === 'string' ? r.of.slice(0, 8) : '' };
+  if (c && LET.indexOf(c.l) >= 0 && QUAL[c.q] !== undefined && c.a >= -2 && c.a <= 2) {
+    cs = { l: c.l, a: +c.a || 0, q: c.q, f: (c.f === 'b5' || c.f === '#5') ? c.f : '', bl: (c.bl && LET.indexOf(c.bl.l) >= 0) ? { l: c.bl.l, a: +c.bl.a || 0 } : null };
+  }
+  return { rn: rn, cs: cs };
+}
 function genCode() {
-  var bad = S.cols.some(function (c) { return !c.v[0]; });
-  if (!S.cols.length) { msg('Escribe primero la melodía en la voz Soprano.'); return; }
+  var hasNotes = S.cols.some(function (c) { return c.v.some(function (e) { return e && !e.r && !e.h; }); }), hasCh = S.cols.some(function (c) { return c.rn || c.cs; });
+  var chordOnly = !hasNotes && hasCh;
+  var bad = !chordOnly && S.cols.some(function (c) { return !c.v[0]; });
+  if (!S.cols.length) { msg('Escribe primero la melodía en la voz Soprano, o los acordes con «Añadir acorde».'); return; }
   if (bad) { msg('Hay acordes sin nota de soprano. Completa la melodía antes de generar el código.'); return; }
+  var baseCols = S.cols.filter(function (c) { return !c.v[0] || !c.v[0].h; });
   var o = {
     v: 1, t: $('tTitle').value.trim(), k: S.key, kc: kcList().reduce(function (a, d) { a[d] = S.kc[d]; return a; }, {}), tc: tcList().reduce(function (a, d) { a[d] = S.tc[d]; return a; }, {}), m: S.time, n: S.measures, pk: S.pickup || 0, p: S.perSystem, l: $('tLock').checked ? 1 : 0, c: $('tChk').checked ? 1 : 0,
-    s: S.cols.filter(function (c) { return !c.v[0].h; }).map(function (c) { var e = c.v[0]; return [e.d || c.d, e.r ? 'r' : e.l + e.o + ':' + e.a, e.t ? 1 : 0]; })
+    s: baseCols.map(function (c) { var e = c.v[0]; if (chordOnly) return [c.d, 'r', 0]; return [e.d || c.d, e.r ? 'r' : e.l + e.o + ':' + e.a, e.t ? 1 : 0]; })
   };
-  var base = S.cols.filter(function (c) { return !c.v[0].h; }), xs = {}, names = ['Soprano'], skipped = [];
-  [1, 2, 3].forEach(function (vi) {
+  if (chordOnly || ($('tCh') && $('tCh').checked && hasCh)) {
+    var ci = 0, ha = [];
+    S.cols.forEach(function (c) {
+      if (!c.v[0] || !c.v[0].h) { ha.push(chordPack(c)); ci = ha.length - 1; }
+      else if ((c.rn || c.cs) && !ha[ci][0] && !ha[ci][1]) ha[ci] = chordPack(c);
+    });
+    o.h = { z: chordOnly ? 1 : 0, l: 1, a: ha };
+  }
+  var base = baseCols, xs = {}, names = chordOnly ? [] : ['Soprano'], skipped = [];
+  (chordOnly ? [] : [1, 2, 3]).forEach(function (vi) {
     if (!S.cols.some(function (c) { return c.v[vi]; })) return;
     var ok = true, arr = base.map(function (c) {
       var e = c.v[vi], sd = c.v[0].d || c.d;
@@ -1784,6 +1813,7 @@ function genCode() {
   });
   if (names.length > 1) o.x = xs;
   $('tOut').value = packCode(o);
+  if (chordOnly) { msg('Código generado solo con grados y cifrado: los estudiantes escriben las cuatro voces.', true); return; }
   msg('Código generado' + (names.length > 1 ? ' con ' + names.join(', ') : '') + '.' + (skipped.length ? ' No incluí ' + skipped.join(', ') + ': su ritmo es distinto al de la soprano (el código solo lleva voces con el mismo ritmo).' : ''), true);
 }
 function newExercise() {
@@ -1820,9 +1850,13 @@ function loadCode(str) {
       });
       if (ns.lock) ns.lockV.push(+vi);
     });
+    if (o.h) {
+      ns.noS = !!o.h.z; ns.lockC = !!o.h.l;
+      o.h.a.forEach(function (a, ci) { var cc = chordClean(a); ns.cols[ci].rn = cc.rn; ns.cols[ci].cs = cc.cs; if (ns.noS) ns.cols[ci].v[0] = null; });
+    }
     if (!partition(ns.cols, TIMES[ns.time].b, ns.pickup).ok) throw 0;
     pushHist(); S = ns; ui.voice = ns.lock ? firstFree() : 0; normalize(); refresh();
-    msg((S.etitle ? S.etitle + ': ' : '') + 'ejercicio cargado.' + (S.lock ? ' Completa ' + [1, 2, 3].filter(function (i) { return !isLk(i); }).map(function (i) { return VOICES[i].n; }).join(', ').replace(/, ([^,]*)$/, ' y $1') + ', y pon grados y cifrado.' : ''), true);
+    msg((S.etitle ? S.etitle + ': ' : '') + 'ejercicio cargado.' + (S.lock && S.noS ? ' Escribe las cuatro voces sobre los grados y el cifrado dados.' : S.lock ? ' Completa ' + [1, 2, 3].filter(function (i) { return !isLk(i); }).map(function (i) { return VOICES[i].n; }).join(', ').replace(/, ([^,]*)$/, ' y $1') + (S.lockC ? '.' : ', y pon grados y cifrado.') : ''), true);
   } catch (e) { msg('El código no es válido. Cópialo completo, tal como lo dejó el docente.'); }
 }
 
