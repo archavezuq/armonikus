@@ -83,7 +83,7 @@ var EPS = 1e-6;
 var W = 960, SYSH = 290, TOPPAD = 76, GAP = 56, LEFT = 54, RIGHT = 26;
 var S = newState();
 var info = { name: '', group: '', date: today(), inst: 'piano', bpm: 76 };
-var ui = { rpt: 're', dyn: 'mf', voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
+var ui = { rpt: 're', dyn: 'mf', voice: 0, dur: 'q', rest: false, acc: 'auto', accKeep: true, mode: 'write', own: false };
 var EX = { list: [], i: 0 };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
@@ -605,7 +605,7 @@ function onClick(p, right) {
       }
       var D = S.lock ? cc.d : ui.dur;
       tryEdit(function () { return writeNote(h.col, vi, nv, D); });
-      ui.acc = 'auto'; syncUI();
+      if (!ui.accKeep) ui.acc = 'auto'; syncUI();
     } else if (h.append) {
       if (S.lock) { msg('Este ejercicio tiene el ritmo fijo: completa las voces sobre los acordes existentes.'); return; }
       var part = layout.part, last = part.ms[part.ms.length - 1], acc = 0;
@@ -616,7 +616,7 @@ function onClick(p, right) {
         if (ui.rest) v[vi] = { r: 1 }; else { var pt = pitchAt(vi, p.y, h.sys, keyForHit(h)); v[vi] = { l: pt.l, o: pt.o, a: pt.a }; }
         S.cols.push({ d: ui.dur, v: v, rn: null, cs: null });
       });
-      ui.acc = 'auto'; syncUI();
+      if (!ui.accKeep) ui.acc = 'auto'; syncUI();
     } else {
       msg(layout.band ? 'Escribe los acordes en orden: el siguiente va en el compás sombreado.' : 'Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».');
     }
@@ -1047,6 +1047,7 @@ function buildStaticUI() {
     b.addEventListener('click', function () { ui.dur = code; ui.rest = ui.rest; syncUI(); }); bd.appendChild(b);
   });
   $('bRest').addEventListener('click', function () { ui.rest = !ui.rest; syncUI(); });
+  $('bAccKeep').addEventListener('click', function () { ui.accKeep = !ui.accKeep; syncUI(); });
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) {
     b.addEventListener('click', function () { var a = parseInt(b.dataset.acc, 10); ui.acc = (ui.acc === a) ? 'auto' : a; ui.rest = false; syncUI(); });
   });
@@ -1225,6 +1226,7 @@ function syncUI() {
     var tY = $('tDyn'); tY.textContent = (ui.mode === 'dyn' ? (ui.dyn || '✕') : 'mf') + ' ▾'; tY.style.fontStyle = 'italic'; tY.classList.toggle('on', ui.mode === 'dyn'); $('tRpt').classList.toggle('on', ui.mode === 'rpt');
   }
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
+  $('bAccKeep').classList.toggle('on', !!ui.accKeep);
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
   document.body.classList.toggle('pen-on', ui.mode === 'pen');
   if (ui.mode !== 'pen' && typeof penClear === 'function') penClear();

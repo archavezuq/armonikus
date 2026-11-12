@@ -158,7 +158,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="qbar">
     <div class="dd"><button class="ddt" id="tDur" title="Figura">♩ ▾</button><div class="ddp" id="pDur"><div class="b" id="bDur"></div></div></div>
     <button id="bRest" title="Escribir silencio">Silencio</button>
-    <div class="dd"><button class="ddt" id="tAcc" title="Alteración">♯♭ ▾</button><div class="ddp" id="pAcc"><div class="b"><button class="ac" data-acc="-2" title="Doble bemol">𝄫</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button><button class="ac" data-acc="2" title="Doble sostenido">𝄪</button></div></div></div>
+    <div class="dd"><button class="ddt" id="tAcc" title="Alteración">♯♭ ▾</button><div class="ddp" id="pAcc"><div class="b"><button class="ac" data-acc="-2" title="Doble bemol">𝄫</button><button class="ac" data-acc="-1" title="Bemol">♭</button><button class="ac" data-acc="0" title="Becuadro">♮</button><button class="ac" data-acc="1" title="Sostenido">♯</button><button class="ac" data-acc="2" title="Doble sostenido">𝄪</button><button id="bAccKeep" class="on" title="Activado: la alteración elegida sigue activa después de escribir una nota (si te equivocas no tienes que elegirla otra vez). Toca la alteración elegida para quitarla.">Mantener</button></div></div></div>
     <div class="dd"><button class="ddt" id="tMode" title="Herramienta">Escribir ▾</button><div class="ddp col" id="bMode"><button data-mode="write" class="on">Escribir</button><button data-mode="dur" title="Cambia la figura de un acorde ya escrito">Cambiar figura</button><button data-mode="del">Borrar nota</button><button data-mode="delchord">Borrar acorde</button><button data-mode="from" title="Toca un compás y la app empieza a sonar desde ahí">Escuchar desde aquí</button><button data-mode="tie" title="Ligadura de prolongación: une una nota con la siguiente de la misma altura (por ejemplo, de un compás al siguiente)">Ligadura</button><button data-mode="pen" title="Dibuja la nota a mano con lápiz o dedo: cabeza, plica, corchete y puntillo">Lápiz ✎</button></div></div>
     <div class="dd"><button class="ddt" id="tDyn" title="Dinámica: elige y luego haz clic en un acorde">mf ▾</button><div class="ddp" id="pDyn"><div class="b"><button data-dyn="pp"><i>pp</i></button><button data-dyn="p"><i>p</i></button><button data-dyn="mp"><i>mp</i></button><button data-dyn="mf"><i>mf</i></button><button data-dyn="f"><i>f</i></button><button data-dyn="ff"><i>ff</i></button><button data-dyn="fp"><i>fp</i></button><button data-dyn="sfz"><i>sfz</i></button><button data-dyn="cresc."><i>cresc.</i></button><button data-dyn="dim."><i>dim.</i></button><button data-dyn="" title="Quitar la dinámica de un acorde">✕</button></div></div></div>
     <div class="dd"><button class="ddt" id="tRpt" title="Repeticiones, casillas, coda y saltos: elige y luego haz clic en un acorde del compás">‖: :‖ ▾</button><div class="ddp col" id="pRpt"><button data-r="rs">Inicio de repetición ‖:</button><button data-r="re">Fin de repetición :‖</button><button data-r="v1">Casilla 1.</button><button data-r="v2">Casilla 2.</button><button data-r="sg">Segno</button><button data-r="co">Coda (destino)</button><button data-r="fi">Fine</button><button data-r="tc">To Coda</button><button data-r="dc">D.C.</button><button data-r="dcf">D.C. al Fine</button><button data-r="dcc">D.C. al Coda</button><button data-r="ds">D.S.</button><button data-r="dsf">D.S. al Fine</button><button data-r="dsc">D.S. al Coda</button><button data-r="x">✕ Quitar marcas del compás</button></div></div>
@@ -168,7 +168,7 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v35</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v36</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>
@@ -494,6 +494,8 @@ var I18N_D = {
   "Bloquear las voces dadas y el ritmo": "Lock the given voices and the rhythm",
   "Dar los grados y el cifrado escritos": "Give the written degrees and chord symbols",
   "Añadir acorde": "Add chord",
+  "Mantener": "Keep",
+  "Activado: la alteración elegida sigue activa después de escribir una nota (si te equivocas no tienes que elegirla otra vez). Toca la alteración elegida para quitarla.": "On: the chosen accidental stays active after writing a note (if you make a mistake you do not have to choose it again). Tap the chosen accidental to remove it.",
   "Añade un acorde vacío con la figura elegida (para ejercicios solo de cifrado)": "Adds an empty chord with the chosen figure (for chord-only exercises)",
   "Si escribiste grados o cifrado junto a una melodía, los estudiantes los reciben bloqueados. En un ejercicio solo de cifrado siempre se incluyen.": "If you wrote degrees or chord symbols next to a melody, students receive them locked. In a chord-only exercise they are always included.",
   "Ejercicio solo de cifrado:": "Chord-only exercise:",
@@ -817,7 +819,7 @@ var EPS = 1e-6;
 var W = 960, SYSH = 290, TOPPAD = 76, GAP = 56, LEFT = 54, RIGHT = 26;
 var S = newState();
 var info = { name: '', group: '', date: today(), inst: 'piano', bpm: 76 };
-var ui = { rpt: 're', dyn: 'mf', voice: 0, dur: 'q', rest: false, acc: 'auto', mode: 'write', own: false };
+var ui = { rpt: 're', dyn: 'mf', voice: 0, dur: 'q', rest: false, acc: 'auto', accKeep: true, mode: 'write', own: false };
 var EX = { list: [], i: 0 };
 var hist = [], redo = [], layout = null, scale = 1, errCols = [], playing = null;
 
@@ -1339,7 +1341,7 @@ function onClick(p, right) {
       }
       var D = S.lock ? cc.d : ui.dur;
       tryEdit(function () { return writeNote(h.col, vi, nv, D); });
-      ui.acc = 'auto'; syncUI();
+      if (!ui.accKeep) ui.acc = 'auto'; syncUI();
     } else if (h.append) {
       if (S.lock) { msg('Este ejercicio tiene el ritmo fijo: completa las voces sobre los acordes existentes.'); return; }
       var part = layout.part, last = part.ms[part.ms.length - 1], acc = 0;
@@ -1350,7 +1352,7 @@ function onClick(p, right) {
         if (ui.rest) v[vi] = { r: 1 }; else { var pt = pitchAt(vi, p.y, h.sys, keyForHit(h)); v[vi] = { l: pt.l, o: pt.o, a: pt.a }; }
         S.cols.push({ d: ui.dur, v: v, rn: null, cs: null });
       });
-      ui.acc = 'auto'; syncUI();
+      if (!ui.accKeep) ui.acc = 'auto'; syncUI();
     } else {
       msg(layout.band ? 'Escribe los acordes en orden: el siguiente va en el compás sombreado.' : 'Todos los compases están llenos. Si necesitas más, aumenta «N.º de compases».');
     }
@@ -1781,6 +1783,7 @@ function buildStaticUI() {
     b.addEventListener('click', function () { ui.dur = code; ui.rest = ui.rest; syncUI(); }); bd.appendChild(b);
   });
   $('bRest').addEventListener('click', function () { ui.rest = !ui.rest; syncUI(); });
+  $('bAccKeep').addEventListener('click', function () { ui.accKeep = !ui.accKeep; syncUI(); });
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) {
     b.addEventListener('click', function () { var a = parseInt(b.dataset.acc, 10); ui.acc = (ui.acc === a) ? 'auto' : a; ui.rest = false; syncUI(); });
   });
@@ -1959,6 +1962,7 @@ function syncUI() {
     var tY = $('tDyn'); tY.textContent = (ui.mode === 'dyn' ? (ui.dyn || '✕') : 'mf') + ' ▾'; tY.style.fontStyle = 'italic'; tY.classList.toggle('on', ui.mode === 'dyn'); $('tRpt').classList.toggle('on', ui.mode === 'rpt');
   }
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
+  $('bAccKeep').classList.toggle('on', !!ui.accKeep);
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
   document.body.classList.toggle('pen-on', ui.mode === 'pen');
   if (ui.mode !== 'pen' && typeof penClear === 'function') penClear();

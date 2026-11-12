@@ -176,6 +176,8 @@ var I18N_D = {
   "Bloquear las voces dadas y el ritmo": "Lock the given voices and the rhythm",
   "Dar los grados y el cifrado escritos": "Give the written degrees and chord symbols",
   "Añadir acorde": "Add chord",
+  "Mantener": "Keep",
+  "Activado: la alteración elegida sigue activa después de escribir una nota (si te equivocas no tienes que elegirla otra vez). Toca la alteración elegida para quitarla.": "On: the chosen accidental stays active after writing a note (if you make a mistake you do not have to choose it again). Tap the chosen accidental to remove it.",
   "Añade un acorde vacío con la figura elegida (para ejercicios solo de cifrado)": "Adds an empty chord with the chosen figure (for chord-only exercises)",
   "Si escribiste grados o cifrado junto a una melodía, los estudiantes los reciben bloqueados. En un ejercicio solo de cifrado siempre se incluyen.": "If you wrote degrees or chord symbols next to a melody, students receive them locked. In a chord-only exercise they are always included.",
   "Ejercicio solo de cifrado:": "Chord-only exercise:",
