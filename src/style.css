@@ -89,3 +89,5 @@ body.pen-on #stage{touch-action:none;cursor:crosshair}
 .ddp{width:max-content;position:absolute;top:calc(100% + 4px);left:0;z-index:60;background:#fff;border:1px solid #c0c8d3;border-radius:8px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.2);max-width:calc(100vw - 24px)}
 .ddp[hidden]{display:none!important}.ddp.col{display:flex;flex-direction:column;gap:4px;min-width:150px}.ddp.col button{text-align:left}
 .ddp .b{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+
+#penFb{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);z-index:60;max-width:calc(100vw - 16px);display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;padding:8px 10px;background:#eef6ff;border:1px solid #8fb8e6;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,0,0,.25)}#penFb[hidden],#penBar[hidden]{display:none!important}#penFb button.pfb{padding:2px 5px;display:flex;align-items:center}#penFb button.pfb svg{height:26px;width:auto}

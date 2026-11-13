@@ -64,6 +64,7 @@
   </div>
 
   <div id="msg" role="status"></div>
+  <div id="penBar" hidden><div id="penFb" hidden></div><div class="small" style="margin:4px 2px"><span id="penLrn"></span> <button id="plCopy" title="Copia las muestras de reconocimiento para mejorar el lápiz de fábrica">Copiar datos</button> <button id="plReset" title="Borra lo aprendido en este dispositivo">Borrar aprendizaje</button></div></div>
   <div id="qbar">
     <div class="dd"><button class="ddt" id="tDur" title="Figura">♩ ▾</button><div class="ddp" id="pDur"><div class="b" id="bDur"></div></div></div>
     <button id="bRest" title="Escribir silencio">Silencio</button>
@@ -77,7 +78,7 @@
   <div id="viewport"><div id="stage"><div id="scoreHost"></div><svg id="ov"></svg><div id="slots"></div></div></div>
   <div id="report"></div>
   <details class="panel" id="board" open>
-    <summary>Pizarra de notas (no se incluye en la entrega) · v36</summary>
+    <summary>Pizarra de notas (no se incluye en la entrega) · v37</summary>
     <div class="b" style="margin:8px 0"><button id="bdPen">Lápiz</button><button id="bdEr">Borrador</button><span class="bdl">Grosor del lápiz</span><select id="bdW" title="Grosor de la línea"><option value="0.8">Muy fina</option><option value="1.5">Fina</option><option value="2.4" selected>Media</option><option value="4">Gruesa</option><option value="7">Muy gruesa</option><option value="12">Extra gruesa</option></select><span class="bdl">Tamaño del borrador</span><select id="bdEW" title="Tamaño del borrador"><option value="10">Pequeño</option><option value="20" selected>Mediano</option><option value="36">Grande</option><option value="60">Muy grande</option><option value="90">Enorme</option></select><input type="color" id="bdCol" value="#1a1a1a" title="Color"><button id="bdClr">Borrar todo</button></div>
     <canvas id="bdCv"></canvas><div id="bdCur" hidden></div>
   </details>

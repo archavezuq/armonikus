@@ -778,6 +778,52 @@ function splitCompound(pts0, noHead) {
   }
   var sf = splitStemFlag(pts); return (sf && sf[0].length > 2) ? sf : null;
 }
+/* ===== aprendizaje del lápiz: mejora con tus correcciones (se guarda en este dispositivo) ===== */
+var PLW = [2, 1, 0.5, 0.5, 0.3, 3, 0.6, 3, 0.8, 2, 1.5], PLK = 'armonikus_pen_v1', PLN = 400;
+var PLRN = (function () { try { var o = JSON.parse(localStorage.getItem(PLK) || 'null'); if (o && Array.isArray(o.s)) return o; } catch (x) { } return { v: 1, s: [] }; })();
+function plSave() { try { localStorage.setItem(PLK, JSON.stringify(PLRN)); } catch (x) { } }
+function plAdd(f, y, w) { if (!f || !DUR[y]) return; PLRN.s.push({ f: f.map(function (v) { return Math.round(v * 1000) / 1000; }), y: y, w: w }); if (PLRN.s.length > PLN) PLRN.s.splice(0, PLRN.s.length - PLN); plSave(); plInfo(); }
+function penKnn(f, rule) {
+  if (!f || PLRN.s.length < 8) return null;
+  var d = PLRN.s.map(function (q) { var t = 0; for (var i = 0; i < PLW.length; i++) { var x = f[i] - q.f[i]; t += PLW[i] * x * x; } return { d: Math.sqrt(t), y: q.y, w: q.w }; }).sort(function (a, b) { return a.d - b.d; }).slice(0, 5);
+  if (d[0].d > 1.5) return null;
+  var v = {}, tot = 0, n = {}; d.forEach(function (q) { var w = q.w / (q.d + 0.1); v[q.y] = (v[q.y] || 0) + w; tot += w; n[q.y] = (n[q.y] || 0) + 1; });
+  var best = Object.keys(v).sort(function (a, b) { return v[b] - v[a]; })[0];
+  return (best !== rule && n[best] >= 2 && v[best] / tot >= 0.7) ? best : null;
+}
+function plInfo() { var e = $('penLrn'); if (e) e.textContent = T('Lápiz: aprende de tus correcciones') + ' · ' + PLRN.s.length + ' ' + T('muestras'); }
+var PFB = null;
+function pfbHide(commit) {
+  var b = $('penFb'); if (b) { b.hidden = true; b.innerHTML = ''; }
+  if (PFB && commit) plAdd(PFB.f, PFB.dur, 0.4);
+  PFB = null;
+}
+function pfbShow(r, f) {
+  var b = $('penFb'); if (!b) return; pfbHide(true);
+  PFB = { f: f, dur: r.dur, cx: r.cx, cy: r.cy, snap: JSON.stringify(S) };
+  b.innerHTML = ''; b.hidden = false;
+  var t = document.createElement('span'); t.textContent = T('Reconocí') + ': ' + T(DUR[r.dur].name.toLowerCase()) + '. ' + T('¿Era otra figura?'); b.appendChild(t);
+  var ok = document.createElement('button'); ok.textContent = '✓ ' + T('Correcto'); ok.addEventListener('click', function () { if (PFB) plAdd(PFB.f, PFB.dur, 1); pfbHide(false); msg(T('Gracias: lo tendré en cuenta.'), true); }); b.appendChild(ok);
+  DUR_ORDER.forEach(function (code) {
+    var q = document.createElement('button'); q.className = 'pfb'; q.innerHTML = durIcon(code); q.title = DUR[code].name;
+    q.addEventListener('click', function () {
+      if (!PFB) return; var P = PFB;
+      if (code === P.dur) { plAdd(P.f, code, 1); pfbHide(false); return; }
+      if (JSON.stringify(S) !== P.snap) { msg('Ya cambiaste algo después de esa nota; usa «Deshacer» o corrige la figura con la herramienta «Cambiar figura».'); pfbHide(false); return; }
+      plAdd(P.f, code, 1); pfbHide(false); undo();
+      var m = ui.mode; ui.dur = code; ui.rest = false; ui.mode = 'write'; onClick({ x: P.cx, y: P.cy }, false); ui.mode = m; syncUI();
+      PEN.last = null; msg(T('Corregido a') + ' ' + T(DUR[code].name.toLowerCase()) + '. ' + T('Aprenderé de esto.'), true);
+    });
+    b.appendChild(q);
+  });
+}
+function plCopy() {
+  var txt = JSON.stringify({ app: 'armonikus-pen', v: 1, n: PLRN.s.length, s: PLRN.s });
+  function ok() { msg('Datos del lápiz copiados. Puedes pegarlos en un mensaje para mejorar el reconocimiento de base.', true); }
+  try { navigator.clipboard.writeText(txt).then(ok, fb); } catch (x) { fb(); }
+  function fb() { var a = document.createElement('textarea'); a.value = txt; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); ok(); } catch (x) { msg('No pude copiar los datos.'); } a.remove(); }
+}
+function plReset() { PLRN.s = []; plSave(); plInfo(); msg('Aprendizaje del lápiz borrado: vuelve el reconocimiento de fábrica.', true); }
 function recognizePen(strokes) {
   var ex = [];
   var hasHead = strokes.some(function (st) { return st.length > 1 && classifyStroke(st).k === 'head'; });
@@ -830,19 +876,25 @@ function recognizePen(strokes) {
   var dur;
   if (!h.filled) dur = stem ? (dot ? 'hd' : 'h') : 'w';
   else dur = stem ? (nFlag >= 2 ? 's' : nFlag === 1 ? (dot ? 'ed' : 'e') : (dot ? 'qd' : 'q')) : (dot ? 'qd' : 'q');
-  var note = '';
-  if (dur === 's' && dot) note = ' (la semicorchea con puntillo no está disponible)';
-  if (!h.filled && !stem && dot) note = ' (la redonda con puntillo no está disponible)';
-  return { dur: dur, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem, info: (h.filled ? 'cabeza llena' : 'cabeza vacía') + ', ' + (stem ? 'plica' : 'sin plica') + ', ' + nFlag + ' corchete' + (nFlag === 1 ? '' : 's') + (dot ? ', puntillo' : '') + ' | ' + sum };
+  var rule = dur, hRatio = plen(h.pts) / (Math.PI * (hb.w + hb.h) / 2 || 1), dn = 6;
+  dots.forEach(function (p) { if (Math.abs(p.b.cy - hb.cy) < 1.6 * S) dn = Math.min(dn, Math.abs(p.b.cx - hb.x1) / S); });
+  var fl = 0; flags.forEach(function (q) { fl += plen(q.pts); });
+  var feat = [Math.min(h.cc == null ? (h.filled ? 1 : 0) : h.cc, 1), Math.min(hRatio, 3) / 3, Math.min(h.rev || 0, 8) / 8, Math.min(hb.w, hb.h) / (Math.max(hb.w, hb.h) || 1), Math.min(Math.max(hb.w, hb.h) / S / 4, 1), stem ? 1 : 0, stem ? Math.min(stem.b.h / S, 8) / 8 : 0, Math.min(nFlag, 3) / 3, Math.min(fl / S, 10) / 10, dot ? 1 : 0, dn / 6];
+  var lr = penKnn(feat, rule); if (lr) dur = lr;
+  var note = lr ? ' (según tus correcciones anteriores)' : '';
+  if (dur === 's' && dot) note += ' (la semicorchea con puntillo no está disponible)';
+  if (!h.filled && !stem && dot) note += ' (la redonda con puntillo no está disponible)';
+  return { dur: dur, rule: rule, feat: feat, cx: hb.cx, cy: hb.cy, note: note, stem: !!stem, info: (h.filled ? 'cabeza llena' : 'cabeza vacía') + ', ' + (stem ? 'plica' : 'sin plica') + ', ' + nFlag + ' corchete' + (nFlag === 1 ? '' : 's') + (dot ? ', puntillo' : '') + ' | ' + sum };
 }
 function penFinish() {
   clearTimeout(PEN.timer);
   var strokes = PEN.strokes; PEN.strokes = []; var g = $('ov').querySelector('#ink'); if (g) g.innerHTML = '';
   if (!strokes.length) return;
-  var r = recognizePen(strokes);
+  var r = recognizePen(strokes), merged = false;
   if (r.noHead && PEN.last && Date.now() - PEN.last.t < 8000 && JSON.stringify(S) === PEN.last.snap) {
-    undo(); strokes = PEN.last.strokes.concat(strokes); r = recognizePen(strokes);
+    undo(); strokes = PEN.last.strokes.concat(strokes); r = recognizePen(strokes); merged = true;
   }
+  if (merged) pfbHide(false); else pfbHide(true);
   if (r.err) { msg(r.err); return; }
   if (DUR[ui.dur] && DUR[ui.dur].tri) { if (!r.stem || r.dur === TRI_BASE[ui.dur]) r.dur = ui.dur; else if (TRI_OF[r.dur]) r.dur = TRI_OF[r.dur]; }
   ui.dur = r.dur; ui.rest = false; syncUI();
@@ -852,9 +904,11 @@ function penFinish() {
   if (!prev) {
     msg('Reconocí: ' + DUR[r.dur].name.toLowerCase() + r.note + ' (' + r.info + '). Si falta el corchete o el puntillo, dibújalo ahora junto a la nota; si no, «Deshacer».', true);
   }
+  if (after !== before && !(DUR[ui.dur] && DUR[ui.dur].tri) && r.feat) pfbShow(r, r.feat);
 }
 function initPen() {
   var stage = $('stage'), touches = {};
+  $('plCopy').addEventListener('click', plCopy); $('plReset').addEventListener('click', plReset); plInfo();
   function contact(e) {
     if (e.pointerType === 'mouse') return !!(e.buttons & 1);
     return true;
@@ -1228,6 +1282,7 @@ function syncUI() {
   Array.prototype.forEach.call(document.querySelectorAll('button.ac'), function (b) { b.classList.toggle('on', ui.acc === parseInt(b.dataset.acc, 10)); });
   $('bAccKeep').classList.toggle('on', !!ui.accKeep);
   Array.prototype.forEach.call(document.querySelectorAll('#bMode button'), function (b) { b.classList.toggle('on', b.dataset.mode === ui.mode); });
+  var pbr = $('penBar'); if (pbr) { pbr.hidden = ui.mode !== 'pen'; if (ui.mode !== 'pen' && PFB) pfbHide(true); }
   document.body.classList.toggle('pen-on', ui.mode === 'pen');
   if (ui.mode !== 'pen' && typeof penClear === 'function') penClear();
   var lk = !!S.lock;
@@ -2047,5 +2102,5 @@ try {
 } catch (e) { }
 refresh();
 if (location.hash.indexOf('#ej=') === 0) loadCode(location.hash);
-window.__lm3 = { measureOrder: measureOrder, T: T, setLang: setLang, penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, buildMusicXML: buildMusicXML, parseSpeech: parseSpeech };
+window.__lm3 = { measureOrder: measureOrder, T: T, setLang: setLang, penFinish: penFinish, recognizePen: recognizePen, PEN: PEN, SYN: SYN, LEVEL: LEVEL, playNote: playNote, get S() { return S; }, get layout() { return layout; }, ui: ui, onClick: onClick, loadCode: loadCode, runChecks: runChecks, handleSpeech: handleSpeech, EX: EX, exAdd: exAdd, exSwitch: exSwitch, buildExport: buildExport, buildMusicXML: buildMusicXML, PLRN: PLRN, penKnn: penKnn, pfbShow: pfbShow, parseSpeech: parseSpeech };
 })();
