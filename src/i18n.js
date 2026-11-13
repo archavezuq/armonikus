@@ -345,6 +345,8 @@ var I18N_P = [
   [/^Código generado con (.+?)\.( No incluí (.+): su ritmo es distinto al de la soprano \(el código solo lleva voces con el mismo ritmo\)\.)?$/, function (m, v, x, w) { return "Code generated with " + v + "." + (x ? " I did not include " + w + ": its rhythm differs from the soprano's (the code only carries voices with the same rhythm)." : ""); }],
   [/^Hoja (\d+)(.*)$/, "Sheet $1$2"],
   [/^Esa nota queda fuera del pentagrama de (.+) \((.+)\)\.$/, "That note falls outside the staff for $1 ($2)."],
+  [/^Reconocí (\d+) notas: (.*)\. Si alguna está mal, «Deshacer» quita el grupo completo\.$/, "Recognized $1 notes: $2. If any is wrong, «Undo» removes the whole group."],
+  [/^Escribí (\d+) de (\d+) notas \((.*)\): no cabían más en el compás o en los compases disponibles\. «Deshacer» quita el grupo\.$/, "Wrote $1 of $2 notes ($3): no more fit in the measure or in the available measures. «Undo» removes the group."],
   [/^Reconocí: (.*) Si falta el corchete o el puntillo, dibújalo ahora junto a la nota; si no, «Deshacer»\.$/, "Recognized: $1 If the flag or dot is missing, draw it now next to the note; otherwise press «Undo»."],
   [/^No vi la cabeza de la nota\. Dibuja un óvalo vacío \(blanca, redonda\) o un óvalo relleno o rayado \(negra, corchea\)\. \[Vi: (.*)\]$/, "I didn't see the note head. Draw an empty oval (half, whole) or a filled or scribbled oval (quarter, eighth). [Saw: $1]"],
   [/^El cambio de compás puede empezar desde el compás (\d+) en adelante\.$/, "The time signature change can start from measure $1 onward."],

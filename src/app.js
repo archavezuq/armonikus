@@ -824,12 +824,99 @@ function plCopy() {
   function fb() { var a = document.createElement('textarea'); a.value = txt; document.body.appendChild(a); a.select(); try { document.execCommand('copy'); ok(); } catch (x) { msg('No pude copiar los datos.'); } a.remove(); }
 }
 function plReset() { PLRN.s = []; plSave(); plInfo(); msg('Aprendizaje del lápiz borrado: vuelve el reconocimiento de fábrica.', true); }
+/* varias notas en una misma tanda de trazos (grupos con corchetes o ligaduras de plicas) */
+function yAtX(pts, x) { var best = pts[0], bd = 1e9; pts.forEach(function (q) { var d = Math.abs(q.x - x); if (d < bd) { bd = d; best = q; } }); return best.y; }
+function recognizeMulti(cl0) {
+  var S = PEN.S, cl = cl0.map(function (c) { return Object.assign({}, c); });
+  var heads = cl.filter(function (c) { return c.k === 'head'; });
+  if (heads.length < 2) return null;
+  heads.forEach(function (c) {
+    var md = Math.max(c.b.w, c.b.h), mn = Math.min(c.b.w, c.b.h);
+    if (md >= 1.2 * S && mn / md < 0.25) { c.k = 'flag'; c.L = plen(c.pts); }
+  });
+  heads = cl.filter(function (c) { return c.k === 'head'; });
+  var big = heads.slice().sort(function (a, b) { return (b.b.w * b.b.h) - (a.b.w * a.b.h); })[0];
+  heads.forEach(function (c) {
+    if (c.k !== 'head') return;
+    var md = Math.max(c.b.w, c.b.h);
+    if (md < 1.2 * S && heads.some(function (o) { return o !== c && o.k === 'head' && c.b.cx > o.b.x1 - 0.3 * S && c.b.cx < o.b.x1 + 3.5 * S && Math.abs(c.b.cy - o.b.cy) < 1.6 * S; })) c.k = 'dot';
+    else if (md < 0.9 * S) { c.k = 'flag'; c.L = plen(c.pts); }
+  });
+  heads = cl.filter(function (c) { return c.k === 'head'; }).sort(function (a, b) { return a.b.cx - b.b.cx; });
+  var stems = cl.filter(function (c) { return c.k === 'stem'; }), dots = cl.filter(function (c) { return c.k === 'dot'; }), flags = cl.filter(function (c) { return c.k === 'flag'; });
+  var used = [], own = heads.map(function (c) {
+    var hb = c.b, cand = stems.filter(function (st) { return used.indexOf(st) < 0 && st.b.cx > hb.x0 - 1.4 * S && st.b.cx < hb.x1 + 1.4 * S && st.b.y0 < hb.y1 + 1.4 * S && st.b.y1 > hb.y0 - 1.4 * S; })
+      .sort(function (a, b) { return Math.abs(a.b.cx - hb.cx) - Math.abs(b.b.cx - hb.cx); });
+    if (cand.length) used.push(cand[0]); return cand[0] || null;
+  });
+  /* una "cabeza" sin plica propia pegada a la punta de otra plica es en realidad un corchete */
+  var keep = [];
+  heads.forEach(function (c, i) {
+    if (!own[i]) {
+      var tip = false;
+      own.forEach(function (st) { if (!st) return; var up = true; var ty = st.b.y0 < c.b.cy ? st.b.y0 : st.b.y1; if (Math.abs(c.b.cx - st.b.cx) < 3.5 * S && Math.abs(c.b.cy - ty) < 2.2 * S) tip = true; });
+      if (tip) { c.k = 'flag'; c.L = plen(c.pts); flags.push(c); return; }
+    }
+    keep.push(i);
+  });
+  if (keep.length < 2) return null;
+  heads = keep.map(function (i) { return heads[i]; }); own = keep.map(function (i) { return own[i]; });
+  stems.forEach(function (st) { if (used.indexOf(st) < 0) { st.k = 'flag'; st.L = plen(st.pts); flags.push(st); } });
+  var notes = [], names = [];
+  heads.forEach(function (h, i) {
+    var hb = h.b, stem = own[i], nFlag = 0;
+    if (stem) {
+      var up = stem.b.cy < hb.cy, tipY = up ? stem.b.y0 : stem.b.y1, ys = [];
+      flags.forEach(function (f) {
+        if (!(stem.b.cx >= f.b.x0 - 1.5 * S && stem.b.cx <= f.b.x1 + 1.5 * S)) return;
+        if (!(tipY >= f.b.y0 - 2 * S && tipY <= f.b.y1 + 2 * S)) return;
+        ys.push(yAtX(f.pts, stem.b.cx));
+      });
+      ys.sort(function (a, b) { return a - b; });
+      for (var j = 0; j < ys.length; j++) if (j === 0 || Math.abs(ys[j] - ys[j - 1]) >= 0.3 * S) nFlag++;
+    }
+    var nx = heads[i + 1] ? heads[i + 1].b.x0 : 1e9;
+    var dot = dots.some(function (q) { return q.b.cx > hb.x1 - 0.4 * S && q.b.cx < Math.min(hb.x1 + 3.5 * S, nx - 0.2 * S) && Math.abs(q.b.cy - hb.cy) < 1.6 * S; });
+    var dur;
+    if (!h.filled) dur = stem ? (dot ? 'hd' : 'h') : 'w';
+    else dur = stem ? (nFlag >= 2 ? 's' : nFlag === 1 ? (dot ? 'ed' : 'e') : (dot ? 'qd' : 'q')) : (dot ? 'qd' : 'q');
+    notes.push({ dur: dur, cx: hb.cx, cy: hb.cy }); names.push(DUR[dur].name.toLowerCase());
+  });
+  return { multi: notes, dur: notes[0].dur, cx: notes[0].cx, cy: notes[0].cy, note: '', info: names.join(', ') };
+}
+function penWriteMulti(r) {
+  var m = ui.mode, hl = hist.length, before = JSON.stringify(S), h0 = hitTest({ x: r.multi[0].cx, y: r.multi[0].cy }), sd = h0 ? h0.sys : 0, base = (h0 && h0.col != null) ? h0.col : null, wrote = 0, stop = false, d0 = ui.dur, written = [];
+  ui.mode = 'write'; ui.rest = false;
+  r.multi.forEach(function (n, i) {
+    if (stop) return;
+    var dur = n.dur;
+    if (DUR[d0] && DUR[d0].tri && TRI_OF[dur]) dur = TRI_OF[dur];
+    ui.dur = dur; var pt = { x: n.cx, y: n.cy };
+    if (i > 0) {
+      var tc = base != null ? base + i : null, sysI = -1;
+      if (tc != null && tc < S.cols.length && layout.cols[tc]) {
+        layout.systems.forEach(function (sy, q) { if (sy.cols.some(function (c) { return c.idx === tc; })) sysI = q; });
+        if (sysI >= 0) pt = { x: layout.cols[tc].x, y: n.cy + layout.systems[sysI].top - layout.systems[sd].top };
+      } else if (layout.band) pt = { x: layout.band.x0 + 12, y: n.cy + layout.systems[layout.band.sys].top - layout.systems[sd].top };
+      else { stop = true; return; }
+    }
+    var b4 = JSON.stringify(S); onClick(pt, false);
+    if (JSON.stringify(S) === b4) stop = true; else { wrote++; written.push(DUR[dur].name.toLowerCase()); }
+  });
+  ui.mode = m; ui.dur = d0; syncUI();
+  if (hist.length > hl + 1) hist.splice(hl + 1);
+  var after = JSON.stringify(S);
+  if (after !== before) PEN.last = { strokes: PEN.lastStrokes, t: Date.now(), snap: after };
+  if (wrote === r.multi.length) msg('Reconocí ' + wrote + ' notas: ' + written.join(', ') + '. Si alguna está mal, «Deshacer» quita el grupo completo.', true);
+  else if (wrote) msg('Escribí ' + wrote + ' de ' + r.multi.length + ' notas (' + written.join(', ') + '): no cabían más en el compás o en los compases disponibles. «Deshacer» quita el grupo.', true);
+}
 function recognizePen(strokes) {
   var ex = [];
   var hasHead = strokes.some(function (st) { return st.length > 1 && classifyStroke(st).k === 'head'; });
   strokes.forEach(function (st) { if (st.length < 2) { ex.push(st); return; } var sp = splitCompound(st, hasHead); if (sp) sp.forEach(function (x) { ex.push(x); }); else ex.push(st); });
   var S = PEN.S, cl = ex.filter(function (x) { return x.length; }).map(classifyStroke);
   var sum = cl.map(function (c) { return c.k + ' ' + (Math.round(c.b.w / S * 10) / 10) + '×' + (Math.round(c.b.h / S * 10) / 10); }).join(', ');
+  var mr = recognizeMulti(cl); if (mr) return mr;
   var hs0 = cl.filter(function (c) { return c.k === 'head'; }), dots = cl.filter(function (c) { return c.k === 'dot'; });
   if (hs0.length > 1) {
     var big = hs0.slice().sort(function (a, b2) { return (b2.b.w * b2.b.h) - (a.b.w * a.b.h); })[0];
@@ -896,6 +983,7 @@ function penFinish() {
   }
   if (merged) pfbHide(false); else pfbHide(true);
   if (r.err) { msg(r.err); return; }
+  if (r.multi) { PEN.lastStrokes = strokes; penWriteMulti(r); return; }
   if (DUR[ui.dur] && DUR[ui.dur].tri) { if (!r.stem || r.dur === TRI_BASE[ui.dur]) r.dur = ui.dur; else if (TRI_OF[r.dur]) r.dur = TRI_OF[r.dur]; }
   ui.dur = r.dur; ui.rest = false; syncUI();
   var m = ui.mode, before = JSON.stringify(S); ui.mode = 'write'; onClick({ x: r.cx, y: r.cy }, false); ui.mode = m; syncUI();
@@ -952,7 +1040,7 @@ function initPen() {
       var m = ui.mode; ui.mode = 'write'; onClick(st.pts[0], false); ui.mode = m; syncUI(); return;
     }
     PEN.strokes.push(st.pts); drawInk();
-    clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 600);
+    clearTimeout(PEN.timer); PEN.timer = setTimeout(penFinish, 800);
   }
   stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
   window.addEventListener('pointerup', function (e) { delete touches[e.pointerId]; });
